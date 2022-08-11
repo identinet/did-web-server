@@ -6,6 +6,6 @@ help:
 dev:
     cargo watch -x run
 
-# Build
+# Build application
 build:
     cargo build --release
