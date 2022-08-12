@@ -1,5 +1,8 @@
 // use rocket::tokio::fs::File;
-use serde::{Deserialize, Serialize};
+// use serde::{Deserialize, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
+// use serde::Deserialize;
+// use rocket::serde::Serialize;
 // use std::error::Error;
 use std::fmt;
 use std::fs;
@@ -24,25 +27,26 @@ impl fmt::Display for MyErrors<String> {
     }
 }
 
-trait CustomAndThen<T, E> {
-    fn and_then2<U, E2, F: FnOnce(T) -> Result<U, E2>>(self, op: F) -> Result<U, E>
-    where
-        E: std::convert::From<E2>;
-}
+// trait CustomAndThen<T, E> {
+//     fn and_then2<U, E2, F: FnOnce(T) -> Result<U, E2>>(self, op: F) -> Result<U, E>
+//     where
+//         E: std::convert::From<E2>;
+// }
 
-impl<T, E> CustomAndThen<T, E> for Result<T, E> {
-    fn and_then2<U, E2, F: FnOnce(T) -> Result<U, E2>>(self, op: F) -> Result<U, E>
-    where
-        E: std::convert::From<E2>,
-    {
-        match self {
-            Ok(t) => op(t).map_err(From::from),
-            Err(e) => Err(e),
-        }
-    }
-}
+// impl<T, E> CustomAndThen<T, E> for Result<T, E> {
+//     fn and_then2<U, E2, F: FnOnce(T) -> Result<U, E2>>(self, op: F) -> Result<U, E>
+//     where
+//         E: std::convert::From<E2>,
+//     {
+//         match self {
+//             Ok(t) => op(t).map_err(From::from),
+//             Err(e) => Err(e),
+//         }
+//     }
+// }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
 pub struct DIDDoc {
     id: String,
     #[serde(rename = "@context")]
@@ -64,7 +68,7 @@ pub struct DIDDoc {
 // TODO: can we also represent sub directories somehow? <..id>?
 // Retrieve DID documents from the file system
 #[get("/v1/web/<id>/did.json")]
-async fn get(id: &str) -> Option<String> {
+fn get(id: &str) -> Option<Json<DIDDoc>> {
     let upload_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/", "dids");
     let filename = Path::new(upload_dir).join(id);
     // File::open(&filename).await.ok();
@@ -115,13 +119,14 @@ async fn get(id: &str) -> Option<String> {
         .and_then(|ref s| {
             serde_json::from_str::<DIDDoc>(s).map_err(|e| MyErrors::ConversionError(e.to_string()))
         })
-        .and_then(|ref d: DIDDoc| {
-            serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))
-        })
+        // .and_then(|ref d: DIDDoc| {
+        //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))
+        // })
         .map_err(|e| {
             println!("get error: {}", e);
             e
         })
+        .map(Json)
         .ok()
 }
 
