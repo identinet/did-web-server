@@ -1,24 +1,21 @@
-// use rocket::tokio::fs::File;
 // use serde::{Deserialize, Serialize};
 use rocket::serde::{json::Json, Deserialize, Serialize};
-// use serde::Deserialize;
-// use rocket::serde::Serialize;
-// use std::error::Error;
 use std::fmt;
 use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 use std::str;
 
 #[macro_use]
 extern crate rocket;
 
 #[derive(Debug)]
-enum MyErrors<String> {
+enum MyErrors {
     FileError(String),
     ConversionError(String),
 }
 
-impl fmt::Display for MyErrors<String> {
+impl fmt::Display for MyErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             MyErrors::FileError(e) => write!(f, "{}", e),
@@ -47,7 +44,7 @@ impl fmt::Display for MyErrors<String> {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
-pub struct DIDDoc {
+struct DIDDoc {
     id: String,
     #[serde(rename = "@context")]
     context: String, // how to add special characters like @context to the document
@@ -65,62 +62,56 @@ pub struct DIDDoc {
 //     })
 // }
 
+fn compute_filename<'a>(base_dir: &str, id: &str) -> Result<PathBuf, &'a str> {
+    Path::new(id)
+        .file_name()
+        // .map(|x| {
+        //     let y = x.to_str();
+        //     match y {
+        //         Some(s) => println!("res {}, {}", s, id),
+        //         None => println!("nothing"),
+        //     };
+        //     x
+        // })
+        //  bail out if id contains more information than than the plain file name
+        .and_then(|id_file| if id_file == id { Some(id_file) } else { None })
+        .ok_or("id is not a file") // TODO: place error messages in a constant somewhere
+        .and_then(|id_file| {
+            let p = Path::new(base_dir).join("dids").join(id_file);
+            if p.is_absolute() {
+                Ok(p)
+            } else {
+                Err("Path not absolute")
+            }
+        })
+}
+
 // TODO: can we also represent sub directories somehow? <..id>?
+// TODO: how about passing .. or some other weird construct, is it safe against that?
+// TODO: implent tests
+// Automatically determine the appropriate DIDdoc derived from the ID .. if that makes sense .. or
+// no?
 // Retrieve DID documents from the file system
 #[get("/v1/web/<id>/did.json")]
 fn get(id: &str) -> Option<Json<DIDDoc>> {
     let upload_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/", "dids");
     let filename = Path::new(upload_dir).join(id);
-    // File::open(&filename).await.ok();
-    // der Fehler kommt von dem Problem, dass fs::read einen IO-Error erzeugt, von dem dann
-    // erwartet wird, dass er weiter ausgeführt wird .. was nicht der Fall ist
-    // fn x(ok: bool) -> Result<i32, dyn Error> {
-    //     if ok {
-    //         Ok(3)
-    //     } else {
-    //         Err(33)
-    //     }
-    // }
-    // x(true)
-    //     .and_then(|| fs::read(filename))
-
-    // let filename2 = Path::new(upload_dir).join(id);
-    // let x = fs::read(filename2).map_err(|e| MyErrors::FileError(e.to_string()));
-    // let _z = match x {
-    //     Ok(ref y) => {
-    //         let aa = str::from_utf8(y).map_err(|e| MyErrors::ConversionError(e.to_string()));
-    //         aa
-    //     }
-    //     Err(e) => Err(e),
-    // };
-    // None
-
-    // // Das Problem scheint teilweise in den Closures zu liegen, die nicht ordentlich funktionieren.
-    // // Eine Lösung ist es auf die Fehlermeldung zu verzichten, denn diese erzeugt
-    // fn toStaticString<'a>(s: &'a String) -> &'a String {
-    //     return s;
-    // }
-
-    // const fn from(b: Vec<u8>) -> Result<&'static str, String> {
-    //     let y = str::from_utf8(&b)
-    //         .map(|r| r.to_string())
-    //         .map_err(|e| MyErrors::ConversionError(e.to_string()));
-    //     // y
-    //     Ok("moin")
-    // }
-
     fs::read(filename)
-        .map_err(|e| MyErrors::FileError(e.to_string()))
+        .or_else(|e| Err(MyErrors::FileError(e.to_string())))
         .and_then(|b| {
-            str::from_utf8(&b)
-                .map(|s| s.to_string()) // only here &str needs to be converted to String to ensure that the result is available beyond the end of the function
-                .map_err(|e| MyErrors::ConversionError(e.to_string()))
+            // str::from_utf8(&b)
+            //     .map(|s| s.to_string()) // only here &str needs to be converted to String to ensure that the result is available beyond the end of the function
+            // okay, I managed to understand what's going on. I recevive an owned piece of data so
+            // I need to ensure that I transform it into another owned piece of data. Yes, this is
+            // possible with a function that transforms it accordingly and consumes the owned data
+            String::from_utf8(b).or_else(|e| Err(MyErrors::ConversionError(e.to_string())))
         })
         .and_then(|ref s| {
-            serde_json::from_str::<DIDDoc>(s).map_err(|e| MyErrors::ConversionError(e.to_string()))
+            serde_json::from_str::<DIDDoc>(s)
+                .or_else(|e| Err(MyErrors::ConversionError(e.to_string())))
         })
         // .and_then(|ref d: DIDDoc| {
-        //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))
+        //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
         // })
         .map_err(|e| {
             println!("get error: {}", e);
@@ -130,8 +121,11 @@ fn get(id: &str) -> Option<Json<DIDDoc>> {
         .ok()
 }
 
-#[post("/v1/web")]
-fn create() -> String {
+// Post a DID document to the post endpoint.. I guess I somehow need to autodetermine the
+// correctness of the key, then validate the request and allow the post to happen
+#[post("/v1/web/<_id>/did.json", data = "<_doc>")]
+fn create(_id: &str, _doc: Json<DIDDoc>) -> String {
+    // 1. let's retrieve the document via Post
     format!("Did doc: did:web:identinet.io:vc/xx/did.json")
 }
 
@@ -153,4 +147,36 @@ fn hello(name: &str, age: u8) -> String {
 #[launch]
 fn rocket() -> _ {
     rocket::build().mount("/", routes![hello, get, create, update, delete])
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn test_compute_filename() {
+        let result = compute_filename(".", "abc");
+        assert_eq!(
+            result,
+            Err("Path not absolute"),
+            "fail if the resulting path is not absolute"
+        );
+
+        let result = compute_filename(env!("CARGO_MANIFEST_DIR"), "/../abc");
+        assert_eq!(
+            result,
+            Err("id is not a file"),
+            "fail if id contains additional characters that are not part of the filename"
+        );
+
+        let result = compute_filename(env!("CARGO_MANIFEST_DIR"), "abc");
+        assert_eq!(
+            match result {
+                Ok(_) => true,
+                Err(_) => false,
+            },
+            true,
+            "succeed when an absolute path can be computed"
+        );
+    }
 }

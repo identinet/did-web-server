@@ -1,3 +1,5 @@
+# Documentation: https://just.systems/man/en/
+
 # Display this help
 help:
     @just -l
@@ -9,3 +11,15 @@ dev:
 # Build application
 build:
     cargo build --release
+
+# Test application
+test:
+    cargo test
+
+# Development test application
+dev-test:
+    cargo watch -x test
+
+# Clean build folder
+clean:
+    @rm -rvf target
