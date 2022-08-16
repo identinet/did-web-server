@@ -11,15 +11,17 @@ extern crate rocket;
 
 #[derive(Debug)]
 enum MyErrors {
-    FileError(String),
     ConversionError(String),
+    FileError(String),
+    FileNameError(String),
 }
 
 impl fmt::Display for MyErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MyErrors::FileError(e) => write!(f, "{}", e),
             MyErrors::ConversionError(e) => write!(f, "{}", e),
+            MyErrors::FileError(e) => write!(f, "{}", e),
+            MyErrors::FileNameError(e) => write!(f, "{}", e),
         }
     }
 }
@@ -97,10 +99,17 @@ fn compute_filename<'a>(base_dir: &str, id: &str) -> Result<PathBuf, &'a str> {
 // Retrieve DID documents from the file system
 #[get("/v1/web/<id>/did.json")]
 fn get(id: &str) -> Option<Json<DIDDoc>> {
-    let upload_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/", "dids");
-    let filename = Path::new(upload_dir).join(id);
-    fs::read(filename)
-        .or_else(|e| Err(MyErrors::FileError(e.to_string())))
+    // TODO: figure out where to get the runtime directory from
+    compute_filename(env!("CARGO_MANIFEST_DIR"), id)
+        .or_else(|e| Err(MyErrors::FileNameError(e.to_string())))
+        // debugging:
+        // .map(|f| {
+        //     f.to_str().map(|ff| println!("f {}", ff));
+        //     f
+        // })
+        .and_then(|filename| {
+            fs::read(filename).or_else(|e| Err(MyErrors::FileError(e.to_string())))
+        })
         .and_then(|b| {
             // str::from_utf8(&b)
             //     .map(|s| s.to_string()) // only here &str needs to be converted to String to ensure that the result is available beyond the end of the function
@@ -164,7 +173,7 @@ mod tests {
         assert_eq!(
             result,
             Err("Path not absolute"),
-            "fail if the resulting path is not absolute"
+            "When path is not absolute, then an error is returned"
         );
 
         let id = "../abc";
@@ -173,7 +182,7 @@ mod tests {
         assert_eq!(
             result,
             Err("id is not a file"),
-            "fail if id contains additional characters that are not part of the filename"
+            "When <id> contains additional characters that are not part of the filename, e.g. a relative path, then return an error"
         );
 
         let id = "abc";
@@ -184,9 +193,11 @@ mod tests {
             Ok(r) => assert_eq!(
                 r,
                 Path::new(base_dir).join("dids").join(id_with_extension),
-                "succeed when an absolute path can be computed"
+                "When <id> and <base_dir> can be combined to an absolute path, then succeed"
             ),
-            Err(_) => panic!("succeed when an absolute path can be computed"),
+            Err(_) => {
+                panic!("When <id> and <base_dir> can be combined to an absolute path, then succeed")
+            }
         }
     }
 }
