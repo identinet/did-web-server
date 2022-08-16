@@ -13,12 +13,12 @@ build:
     cargo build --release
 
 # Test application
-test:
-    cargo test
+test tests='':
+    cargo test {{ tests }}
 
 # Development test application
-dev-test:
-    cargo watch -x test
+dev-test tests='':
+    cargo watch -x 'test {{ tests }}'
 
 # Clean build folder
 clean:

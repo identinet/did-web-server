@@ -77,7 +77,10 @@ fn compute_filename<'a>(base_dir: &str, id: &str) -> Result<PathBuf, &'a str> {
         .and_then(|id_file| if id_file == id { Some(id_file) } else { None })
         .ok_or("id is not a file") // TODO: place error messages in a constant somewhere
         .and_then(|id_file| {
-            let p = Path::new(base_dir).join("dids").join(id_file);
+            let p = Path::new(base_dir)
+                .join("dids")
+                .join(id_file)
+                .with_extension("json");
             if p.is_absolute() {
                 Ok(p)
             } else {
@@ -155,28 +158,35 @@ mod tests {
 
     #[test]
     fn test_compute_filename() {
-        let result = compute_filename(".", "abc");
+        let id = "abc";
+        let base_dir = ".";
+        let result = compute_filename(base_dir, id);
         assert_eq!(
             result,
             Err("Path not absolute"),
             "fail if the resulting path is not absolute"
         );
 
-        let result = compute_filename(env!("CARGO_MANIFEST_DIR"), "/../abc");
+        let id = "../abc";
+        let base_dir = env!("CARGO_MANIFEST_DIR");
+        let result = compute_filename(base_dir, id);
         assert_eq!(
             result,
             Err("id is not a file"),
             "fail if id contains additional characters that are not part of the filename"
         );
 
-        let result = compute_filename(env!("CARGO_MANIFEST_DIR"), "abc");
-        assert_eq!(
-            match result {
-                Ok(_) => true,
-                Err(_) => false,
-            },
-            true,
-            "succeed when an absolute path can be computed"
-        );
+        let id = "abc";
+        let base_dir = env!("CARGO_MANIFEST_DIR");
+        let id_with_extension = "abc.json";
+        let result = compute_filename(base_dir, id);
+        match result {
+            Ok(r) => assert_eq!(
+                r,
+                Path::new(base_dir).join("dids").join(id_with_extension),
+                "succeed when an absolute path can be computed"
+            ),
+            Err(_) => panic!("succeed when an absolute path can be computed"),
+        }
     }
 }
