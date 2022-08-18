@@ -1,3 +1,5 @@
+// TODO: implement file writing
+
 // use serde::{Deserialize, Serialize};
 use rocket::serde::{json::Json, Deserialize, Serialize};
 use std::fmt;
@@ -9,22 +11,26 @@ use std::str;
 #[macro_use]
 extern crate rocket;
 
+// TODO: change String to &'static str to avoid reallocation of the error on the heap
 #[derive(Debug, Responder)]
-enum DocumentErrors {
+enum DIDError {
     #[response(status = 500)] // InternalServerError
     ConversionError(String),
     #[response(status = 399)] // TODO: return a default value instead of an error code
     FileError(String),
     #[response(status = 400)] // BadRequest
     FileNameError(String),
+    #[response(status = 400)] // BadRequest
+    DIDExistsError(String),
 }
 
-impl fmt::Display for DocumentErrors {
+impl fmt::Display for DIDError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DocumentErrors::ConversionError(e) => write!(f, "{}", e),
-            DocumentErrors::FileError(e) => write!(f, "{}", e),
-            DocumentErrors::FileNameError(e) => write!(f, "{}", e),
+            DIDError::ConversionError(e) => write!(f, "{}", e),
+            DIDError::FileError(e) => write!(f, "{}", e),
+            DIDError::FileNameError(e) => write!(f, "{}", e),
+            DIDError::DIDExistsError(e) => write!(f, "{}", e),
         }
     }
 }
@@ -108,15 +114,6 @@ fn compute_filename<'a>(base_dir: &str, id: &str) -> Result<PathBuf, &'a str> {
         })
 }
 
-#[derive(Responder)]
-enum DIDResult<T, E> {
-    #[response(status = 200)]
-    Ok(T),
-    Err(E),
-}
-
-// TODO: implent tests
-
 /// Retrieve DID documents from the file system.
 ///
 /// * `id` - requested id, e.g. `alice`
@@ -125,7 +122,8 @@ enum DIDResult<T, E> {
 ///
 /// * implement subdirectories
 #[get("/<id>/did.json")]
-fn get(config: &rocket::State<Config>, id: &str) -> DIDResult<Json<DIDDoc>, DocumentErrors> {
+fn get(config: &rocket::State<Config>, id: &str) -> Result<Json<DIDDoc>, DIDError> {
+    // TODO: remove debug output
     println!("domainname {}", &config.domainname);
     println!("subpath {}", &config.subpath);
     println!("didstore {}", &config.didstore);
@@ -134,10 +132,8 @@ fn get(config: &rocket::State<Config>, id: &str) -> DIDResult<Json<DIDDoc>, Docu
         &config.domainname, &config.subpath, id
     );
 
-    // std::env::var("PWD"); // TODO: retrieve directory where to store the DIDs dynamically; default
-    //                       // is the current directory's `dids` subdirectory
-    let result = compute_filename(&config.didstore, id)
-        .or_else(|e| Err(DocumentErrors::FileNameError(e.to_string())))
+    compute_filename(&config.didstore, id)
+        .or_else(|e| Err(DIDError::FileNameError(e.to_string())))
         // debugging:
         // .map(|f| {
         //     f.to_str().map(|ff| println!("f {}", ff));
@@ -146,7 +142,7 @@ fn get(config: &rocket::State<Config>, id: &str) -> DIDResult<Json<DIDDoc>, Docu
         .and_then(|filename| {
             fs::read(filename).or_else(|e| {
                 // TODO: return default value
-                Err(DocumentErrors::FileError(e.to_string()))
+                Err(DIDError::FileError(e.to_string()))
             })
         })
         .and_then(|b| {
@@ -155,11 +151,11 @@ fn get(config: &rocket::State<Config>, id: &str) -> DIDResult<Json<DIDDoc>, Docu
             // okay, I managed to understand what's going on. I recevive an owned piece of data so
             // I need to ensure that I transform it into another owned piece of data. Yes, this is
             // possible with a function that transforms it accordingly and consumes the owned data
-            String::from_utf8(b).or_else(|e| Err(DocumentErrors::ConversionError(e.to_string())))
+            String::from_utf8(b).or_else(|e| Err(DIDError::ConversionError(e.to_string())))
         })
         .and_then(|ref s| {
             serde_json::from_str::<DIDDoc>(s)
-                .or_else(|e| Err(DocumentErrors::ConversionError(e.to_string())))
+                .or_else(|e| Err(DIDError::ConversionError(e.to_string())))
         })
         // .and_then(|ref d: DIDDoc| {
         //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
@@ -168,11 +164,7 @@ fn get(config: &rocket::State<Config>, id: &str) -> DIDResult<Json<DIDDoc>, Docu
             println!("get error: {}", e);
             e
         })
-        .map(Json);
-    match result {
-        Ok(r) => DIDResult::Ok(r),
-        Err(e) => DIDResult::Err(e),
-    }
+        .map(Json)
 }
 
 /// Creates a DID document .. I guess I somehow need to autodetermine the
@@ -185,14 +177,27 @@ fn get(config: &rocket::State<Config>, id: &str) -> DIDResult<Json<DIDDoc>, Docu
 /// * Implement authentication via some fitting method, JWT or actual signed requests via a private
 ///   key
 /// * Create the DID document with the provided data
-#[post("/v1/web/<_id>/did.json", data = "<_doc>")]
-fn create(config: &rocket::State<Config>, _id: &str, _doc: Json<DIDDoc>) -> String {
+#[post("/v1/web/<id>/did.json", data = "<_doc>")]
+fn create(
+    config: &rocket::State<Config>,
+    id: &str,
+    _doc: Json<DIDDoc>,
+) -> Result<String, DIDError> {
     // 1. let's retrieve the document via Post
 
-    // let result = compute_filename(&config.didstore, id)
-    //     .or_else(|e| Err(DocumentErrors::FileNameError(e.to_string())));
-
-    format!("Did doc: did:web:identinet.io:vc/xx/did.json")
+    compute_filename(&config.didstore, id)
+        .or_else(|e| Err(DIDError::FileNameError(e.to_string())))
+        .and_then(|filename| {
+            if filename.exists() {
+                Err(DIDError::DIDExistsError(format!(
+                    "DID already exists: {}",
+                    "todo did"
+                )))
+            } else {
+                Ok(filename)
+            }
+        })
+        .map(|_| format!("Did doc: did:web:identinet.io:vc/xx/did.json"))
 }
 
 /// Updates a DID Document if the identity is authorized to perform this operation.
