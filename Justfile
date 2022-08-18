@@ -12,6 +12,10 @@ dev:
 build:
     cargo build --release
 
+# Lint code
+lint:
+    cargo clippy
+
 # Test application
 test tests='':
     cargo test {{ tests }}

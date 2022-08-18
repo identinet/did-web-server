@@ -15,22 +15,24 @@ extern crate rocket;
 #[derive(Debug, Responder)]
 enum DIDError {
     #[response(status = 500)] // InternalServerError
-    ConversionError(String),
+    ContenctConversion(String),
     #[response(status = 399)] // TODO: return a default value instead of an error code
-    FileError(String),
+    NoFileRead(String),
     #[response(status = 400)] // BadRequest
-    FileNameError(String),
+    NoFileName(String),
     #[response(status = 400)] // BadRequest
-    DIDExistsError(String),
+    DIDExists(String),
 }
+
+impl std::error::Error for DIDError {}
 
 impl fmt::Display for DIDError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DIDError::ConversionError(e) => write!(f, "{}", e),
-            DIDError::FileError(e) => write!(f, "{}", e),
-            DIDError::FileNameError(e) => write!(f, "{}", e),
-            DIDError::DIDExistsError(e) => write!(f, "{}", e),
+            DIDError::ContenctConversion(e) => write!(f, "{}", e),
+            DIDError::NoFileRead(e) => write!(f, "{}", e),
+            DIDError::NoFileName(e) => write!(f, "{}", e),
+            DIDError::DIDExists(e) => write!(f, "{}", e),
         }
     }
 }
@@ -133,16 +135,16 @@ fn get(config: &rocket::State<Config>, id: &str) -> Result<Json<DIDDoc>, DIDErro
     );
 
     compute_filename(&config.didstore, id)
-        .or_else(|e| Err(DIDError::FileNameError(e.to_string())))
+        .map_err(|e| DIDError::NoFileName(e.to_string()))
         // debugging:
         // .map(|f| {
         //     f.to_str().map(|ff| println!("f {}", ff));
         //     f
         // })
         .and_then(|filename| {
-            fs::read(filename).or_else(|e| {
+            fs::read(filename).map_err(|e| {
                 // TODO: return default value
-                Err(DIDError::FileError(e.to_string()))
+                DIDError::NoFileRead(e.to_string())
             })
         })
         .and_then(|b| {
@@ -151,11 +153,11 @@ fn get(config: &rocket::State<Config>, id: &str) -> Result<Json<DIDDoc>, DIDErro
             // okay, I managed to understand what's going on. I recevive an owned piece of data so
             // I need to ensure that I transform it into another owned piece of data. Yes, this is
             // possible with a function that transforms it accordingly and consumes the owned data
-            String::from_utf8(b).or_else(|e| Err(DIDError::ConversionError(e.to_string())))
+            String::from_utf8(b).map_err(|e| DIDError::ContenctConversion(e.to_string()))
         })
         .and_then(|ref s| {
             serde_json::from_str::<DIDDoc>(s)
-                .or_else(|e| Err(DIDError::ConversionError(e.to_string())))
+                .map_err(|e| DIDError::ContenctConversion(e.to_string()))
         })
         // .and_then(|ref d: DIDDoc| {
         //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
@@ -186,10 +188,10 @@ fn create(
     // 1. let's retrieve the document via Post
 
     compute_filename(&config.didstore, id)
-        .or_else(|e| Err(DIDError::FileNameError(e.to_string())))
+        .map_err(|e| DIDError::NoFileName(e.to_string()))
         .and_then(|filename| {
             if filename.exists() {
-                Err(DIDError::DIDExistsError(format!(
+                Err(DIDError::DIDExists(format!(
                     "DID already exists: {}",
                     "todo did"
                 )))
@@ -234,7 +236,7 @@ fn rocket() -> _ {
                 // by default store all files in $PWD/did_store/
                 &std::env::current_dir()
                     .map(|val| val.join("did_store").to_str().unwrap_or(".").to_string())
-                    .unwrap_or(".".to_string()),
+                    .unwrap_or_else(|_| ".".to_string()),
             ),
         })
         .mount("/", routes![hello, get, create, update, delete])
