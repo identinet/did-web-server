@@ -10,7 +10,7 @@ use std::str;
 extern crate rocket;
 
 #[derive(Debug, Responder)]
-enum MyErrors {
+enum DocumentErrors {
     #[response(status = 500)] // InternalServerError
     ConversionError(String),
     #[response(status = 399)] // TODO: return a default value instead of an error code
@@ -19,14 +19,21 @@ enum MyErrors {
     FileNameError(String),
 }
 
-impl fmt::Display for MyErrors {
+impl fmt::Display for DocumentErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MyErrors::ConversionError(e) => write!(f, "{}", e),
-            MyErrors::FileError(e) => write!(f, "{}", e),
-            MyErrors::FileNameError(e) => write!(f, "{}", e),
+            DocumentErrors::ConversionError(e) => write!(f, "{}", e),
+            DocumentErrors::FileError(e) => write!(f, "{}", e),
+            DocumentErrors::FileNameError(e) => write!(f, "{}", e),
         }
     }
+}
+
+#[derive(Debug)]
+struct Config {
+    domainname: String,
+    subpath: String,
+    didstore: String,
 }
 
 // trait CustomAndThen<T, E> {
@@ -67,6 +74,13 @@ struct DIDDoc {
 //     })
 // }
 
+fn get_env(varname: &str, default: &str) -> String {
+    match std::env::var(varname) {
+        Ok(value) => value,
+        Err(_) => default.to_string(),
+    }
+}
+
 /// Computes the absolute path to a file with json extension in a base
 /// direcotory and an ID.
 fn compute_filename<'a>(base_dir: &str, id: &str) -> Result<PathBuf, &'a str> {
@@ -85,10 +99,7 @@ fn compute_filename<'a>(base_dir: &str, id: &str) -> Result<PathBuf, &'a str> {
         .and_then(|id_file| if id_file == id { Some(id_file) } else { None })
         .ok_or("id is not a file") // TODO: place error messages in a constant somewhere
         .and_then(|id_file| {
-            let p = Path::new(base_dir)
-                .join("dids")
-                .join(id_file)
-                .with_extension("json");
+            let p = Path::new(base_dir).join(id_file).with_extension("json");
             if p.is_absolute() {
                 Ok(p)
             } else {
@@ -97,53 +108,8 @@ fn compute_filename<'a>(base_dir: &str, id: &str) -> Result<PathBuf, &'a str> {
         })
 }
 
-#[test]
-fn test_compute_filename() {
-    let id = "";
-    let base_dir = ".";
-    let result = compute_filename(base_dir, id);
-    assert_eq!(
-        result,
-        Err("id is not a file"),
-        "When <id> is empty, then an error is returned"
-    );
-
-    let id = "abc";
-    let base_dir = ".";
-    let result = compute_filename(base_dir, id);
-    assert_eq!(
-        result,
-        Err("Path not absolute"),
-        "When resulting path is not absolute, then an error is returned"
-    );
-
-    let id = "../abc";
-    let base_dir = env!("CARGO_MANIFEST_DIR");
-    let result = compute_filename(base_dir, id);
-    assert_eq!(
-            result,
-            Err("id is not a file"),
-            "When <id> contains additional characters that are not part of the filename, e.g. a relative path, then return an error"
-        );
-
-    let id = "abc";
-    let base_dir = env!("CARGO_MANIFEST_DIR");
-    let id_with_extension = "abc.json";
-    let result = compute_filename(base_dir, id);
-    match result {
-        Ok(r) => assert_eq!(
-            r,
-            Path::new(base_dir).join("dids").join(id_with_extension),
-            "When <id> and <base_dir> can be combined to an absolute path, then succeed"
-        ),
-        Err(_) => {
-            panic!("When <id> and <base_dir> can be combined to an absolute path, then succeed")
-        }
-    }
-}
-
 #[derive(Responder)]
-enum MyResult2<T, E> {
+enum DIDResult<T, E> {
     #[response(status = 200)]
     Ok(T),
     Err(E),
@@ -159,11 +125,19 @@ enum MyResult2<T, E> {
 ///
 /// * implement subdirectories
 #[get("/<id>/did.json")]
-fn get(id: &str) -> MyResult2<Json<DIDDoc>, MyErrors> {
+fn get(config: &rocket::State<Config>, id: &str) -> DIDResult<Json<DIDDoc>, DocumentErrors> {
+    println!("domainname {}", &config.domainname);
+    println!("subpath {}", &config.subpath);
+    println!("didstore {}", &config.didstore);
+    println!(
+        "did did:web:{}:{}/{}/did.json",
+        &config.domainname, &config.subpath, id
+    );
+
     // std::env::var("PWD"); // TODO: retrieve directory where to store the DIDs dynamically; default
     //                       // is the current directory's `dids` subdirectory
-    let result = compute_filename(env!("PWD"), id)
-        .or_else(|e| Err(MyErrors::FileNameError(e.to_string())))
+    let result = compute_filename(&config.didstore, id)
+        .or_else(|e| Err(DocumentErrors::FileNameError(e.to_string())))
         // debugging:
         // .map(|f| {
         //     f.to_str().map(|ff| println!("f {}", ff));
@@ -172,7 +146,7 @@ fn get(id: &str) -> MyResult2<Json<DIDDoc>, MyErrors> {
         .and_then(|filename| {
             fs::read(filename).or_else(|e| {
                 // TODO: return default value
-                Err(MyErrors::FileError(e.to_string()))
+                Err(DocumentErrors::FileError(e.to_string()))
             })
         })
         .and_then(|b| {
@@ -181,11 +155,11 @@ fn get(id: &str) -> MyResult2<Json<DIDDoc>, MyErrors> {
             // okay, I managed to understand what's going on. I recevive an owned piece of data so
             // I need to ensure that I transform it into another owned piece of data. Yes, this is
             // possible with a function that transforms it accordingly and consumes the owned data
-            String::from_utf8(b).or_else(|e| Err(MyErrors::ConversionError(e.to_string())))
+            String::from_utf8(b).or_else(|e| Err(DocumentErrors::ConversionError(e.to_string())))
         })
         .and_then(|ref s| {
             serde_json::from_str::<DIDDoc>(s)
-                .or_else(|e| Err(MyErrors::ConversionError(e.to_string())))
+                .or_else(|e| Err(DocumentErrors::ConversionError(e.to_string())))
         })
         // .and_then(|ref d: DIDDoc| {
         //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
@@ -196,20 +170,28 @@ fn get(id: &str) -> MyResult2<Json<DIDDoc>, MyErrors> {
         })
         .map(Json);
     match result {
-        Ok(r) => MyResult2::Ok(r),
-        Err(e) => MyResult2::Err(e),
+        Ok(r) => DIDResult::Ok(r),
+        Err(e) => DIDResult::Err(e),
     }
 }
 
 /// Creates a DID document .. I guess I somehow need to autodetermine the
-/// correctness of the key, then validate the request and allow the post to happen
+/// correctness of the key, then validate the request and allow the post to happen. This is a
+/// method for the administrator to create the DIDs that are allowed to exist on the server. It
+/// requires authentication, e.g. via a signed request or just a JWT.
 ///
 /// # TODO
 ///
-/// *
+/// * Implement authentication via some fitting method, JWT or actual signed requests via a private
+///   key
+/// * Create the DID document with the provided data
 #[post("/v1/web/<_id>/did.json", data = "<_doc>")]
-fn create(_id: &str, _doc: Json<DIDDoc>) -> String {
+fn create(config: &rocket::State<Config>, _id: &str, _doc: Json<DIDDoc>) -> String {
     // 1. let's retrieve the document via Post
+
+    // let result = compute_filename(&config.didstore, id)
+    //     .or_else(|e| Err(DocumentErrors::FileNameError(e.to_string())));
+
     format!("Did doc: did:web:identinet.io:vc/xx/did.json")
 }
 
@@ -238,5 +220,67 @@ fn hello(name: &str, age: u8) -> String {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![hello, get, create, update, delete])
+    rocket::build()
+        .manage(Config {
+            domainname: get_env("DOMAINNAME", "localhost"),
+            subpath: get_env("SUBPATH", ""),
+            didstore: get_env(
+                "DID_STORE",
+                // by default store all files in $PWD/did_store/
+                &std::env::current_dir()
+                    .map(|val| val.join("did_store").to_str().unwrap_or(".").to_string())
+                    .unwrap_or(".".to_string()),
+            ),
+        })
+        .mount("/", routes![hello, get, create, update, delete])
+}
+
+#[cfg(test)]
+mod test {
+    use crate::*;
+
+    #[test]
+    fn test_compute_filename() {
+        let id = "";
+        let base_dir = ".";
+        let result = compute_filename(base_dir, id);
+        assert_eq!(
+            result,
+            Err("id is not a file"),
+            "When <id> is empty, then an error is returned"
+        );
+
+        let id = "abc";
+        let base_dir = ".";
+        let result = compute_filename(base_dir, id);
+        assert_eq!(
+            result,
+            Err("Path not absolute"),
+            "When resulting path is not absolute, then an error is returned"
+        );
+
+        let id = "../abc";
+        let base_dir = &format!("{}{}", env!("CARGO_MANIFEST_DIR"), "/dids");
+        let result = compute_filename(base_dir, id);
+        assert_eq!(
+            result,
+            Err("id is not a file"),
+            "When <id> contains additional characters that are not part of the filename, e.g. a relative path, then return an error"
+        );
+
+        let id = "abc";
+        let base_dir = &format!("{}{}", env!("CARGO_MANIFEST_DIR"), "/dids");
+        let id_with_extension = "abc.json";
+        let result = compute_filename(base_dir, id);
+        match result {
+            Ok(r) => assert_eq!(
+                r,
+                Path::new(base_dir).join(id_with_extension),
+                "When <id> and <base_dir> can be combined to an absolute path, then succeed"
+            ),
+            Err(_) => {
+                panic!("When <id> and <base_dir> can be combined to an absolute path, then succeed")
+            }
+        }
+    }
 }
