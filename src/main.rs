@@ -1,7 +1,8 @@
 // TODO: implement file writing
 
 // use serde::{Deserialize, Serialize};
-use rocket::serde::{json::Json, Deserialize, Serialize};
+use rocket::serde::json::Json;
+use ssi::did;
 use std::fmt;
 use std::fs;
 use std::path::Path;
@@ -61,14 +62,6 @@ struct Config {
 //         }
 //     }
 // }
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
-struct DIDDoc {
-    id: String,
-    #[serde(rename = "@context")]
-    context: String, // how to add special characters like @context to the document
-}
 
 // impl fmt::Display for DIDDoc {
 //     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -146,7 +139,7 @@ fn compute_filename<'a>(base_dir: &str, id: &str) -> Result<PathBuf, &'a str> {
 ///
 /// * implement subdirectories
 #[get("/v1/web/<id>/did.json")]
-fn get(config: &rocket::State<Config>, id: &str) -> Result<Json<DIDDoc>, DIDError> {
+fn get(config: &rocket::State<Config>, id: &str) -> Result<Json<did::Document>, DIDError> {
     // TODO: remove debug output
     println!("domainname {}", &config.domainname);
     println!("subpath {}", &config.subpath);
@@ -171,10 +164,10 @@ fn get(config: &rocket::State<Config>, id: &str) -> Result<Json<DIDDoc>, DIDErro
         })
         .and_then(|b| String::from_utf8(b).map_err(|e| DIDError::ContenctConversion(e.to_string())))
         .and_then(|ref s| {
-            serde_json::from_str::<DIDDoc>(s)
+            serde_json::from_str::<did::Document>(s)
                 .map_err(|e| DIDError::ContenctConversion(e.to_string()))
         })
-        // .and_then(|ref d: DIDDoc| {
+        // .and_then(|ref d: did:Document| {
         //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
         // })
         .map_err(log("got error"))
@@ -182,7 +175,7 @@ fn get(config: &rocket::State<Config>, id: &str) -> Result<Json<DIDDoc>, DIDErro
 }
 
 #[get("/<id>/did.json")]
-fn getroot(config: &rocket::State<Config>, id: &str) -> Result<Json<DIDDoc>, DIDError> {
+fn getroot(config: &rocket::State<Config>, id: &str) -> Result<Json<did::Document>, DIDError> {
     get(config, id)
 }
 
@@ -200,7 +193,7 @@ fn getroot(config: &rocket::State<Config>, id: &str) -> Result<Json<DIDDoc>, DID
 fn create(
     config: &rocket::State<Config>,
     id: &str,
-    _doc: Json<DIDDoc>,
+    _doc: Json<did::Document>,
 ) -> Result<String, DIDError> {
     // 1. let's retrieve the document via Post
 
@@ -224,7 +217,7 @@ fn create(
 /// * `presentation` - verifable presentation that holds the updated DID Document
 ///
 /// # TODO
-/// Automatically determine the appropriate DIDdoc derived from the ID .. if that makes sense .. or
+/// Automatically determine the appropriate DID Document derived from the ID .. if that makes sense .. or
 /// no?
 #[put("/v1/web/<id>/did.json", data = "<_presentation>")]
 fn update(id: &str, _presentation: &str) -> String {
