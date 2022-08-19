@@ -89,6 +89,28 @@ fn get_env(varname: &str, default: &str) -> String {
     }
 }
 
+/// Takes a message and returns a function that takes a variable, prints it with the message and
+/// returns the argument.
+///
+/// # Example:
+///
+/// ```rust
+/// Err("an error")
+///   .map_err(log("state of error is"))
+///   .map(|x|
+///     // do something else
+///     x
+///   )
+/// ```
+///
+/// Prints: `state of the error is: an error`
+pub fn log<T: fmt::Display>(msg: &'static str) -> impl Fn(T) -> T {
+    move |o| {
+        println!("{}: {}", msg, o);
+        o
+    }
+}
+
 /// Computes the absolute path to a file with json extension in a base
 /// direcotory and an ID.
 fn compute_filename<'a>(base_dir: &str, id: &str) -> Result<PathBuf, &'a str> {
@@ -123,7 +145,7 @@ fn compute_filename<'a>(base_dir: &str, id: &str) -> Result<PathBuf, &'a str> {
 /// # TODO
 ///
 /// * implement subdirectories
-#[get("/<id>/did.json")]
+#[get("/v1/web/<id>/did.json")]
 fn get(config: &rocket::State<Config>, id: &str) -> Result<Json<DIDDoc>, DIDError> {
     // TODO: remove debug output
     println!("domainname {}", &config.domainname);
@@ -147,14 +169,7 @@ fn get(config: &rocket::State<Config>, id: &str) -> Result<Json<DIDDoc>, DIDErro
                 DIDError::NoFileRead(e.to_string())
             })
         })
-        .and_then(|b| {
-            // str::from_utf8(&b)
-            //     .map(|s| s.to_string()) // only here &str needs to be converted to String to ensure that the result is available beyond the end of the function
-            // okay, I managed to understand what's going on. I recevive an owned piece of data so
-            // I need to ensure that I transform it into another owned piece of data. Yes, this is
-            // possible with a function that transforms it accordingly and consumes the owned data
-            String::from_utf8(b).map_err(|e| DIDError::ContenctConversion(e.to_string()))
-        })
+        .and_then(|b| String::from_utf8(b).map_err(|e| DIDError::ContenctConversion(e.to_string())))
         .and_then(|ref s| {
             serde_json::from_str::<DIDDoc>(s)
                 .map_err(|e| DIDError::ContenctConversion(e.to_string()))
@@ -162,11 +177,13 @@ fn get(config: &rocket::State<Config>, id: &str) -> Result<Json<DIDDoc>, DIDErro
         // .and_then(|ref d: DIDDoc| {
         //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
         // })
-        .map_err(|e| {
-            println!("get error: {}", e);
-            e
-        })
+        .map_err(log("got error"))
         .map(Json)
+}
+
+#[get("/<id>/did.json")]
+fn getroot(config: &rocket::State<Config>, id: &str) -> Result<Json<DIDDoc>, DIDError> {
+    get(config, id)
 }
 
 /// Creates a DID document .. I guess I somehow need to autodetermine the
@@ -193,7 +210,7 @@ fn create(
             if filename.exists() {
                 Err(DIDError::DIDExists(format!(
                     "DID already exists: {}",
-                    "todo did"
+                    "TODO: did"
                 )))
             } else {
                 Ok(filename)
@@ -220,11 +237,6 @@ fn delete(id: &str) -> String {
     format!("Did doc: did:web:identinet.io:vc/{}/did.json", id)
 }
 
-#[get("/hello/<name>/<age>")]
-fn hello(name: &str, age: u8) -> String {
-    format!("Hello, {} year old named {}!", age, name)
-}
-
 #[launch]
 fn rocket() -> _ {
     rocket::build()
@@ -239,7 +251,7 @@ fn rocket() -> _ {
                     .unwrap_or_else(|_| ".".to_string()),
             ),
         })
-        .mount("/", routes![hello, get, create, update, delete])
+        .mount("/", routes![get, getroot, create, update, delete])
 }
 
 #[cfg(test)]
