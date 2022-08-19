@@ -16,6 +16,10 @@ build:
 lint:
     cargo clippy
 
+# Generate and open documentation
+docs:
+    cargo doc --open
+
 # Test application
 test tests='':
     cargo test {{ tests }}
