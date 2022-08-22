@@ -14,30 +14,13 @@ use rocket::serde::json::Json;
 use ssi::did::Document;
 use std::fs;
 use std::io::prelude::*;
+use std::path::Path;
 use std::str;
 
 #[macro_use]
 extern crate rocket;
 
-// trait CustomAndThen<T, E> {
-//     fn and_then2<U, E2, F: FnOnce(T) -> Result<U, E2>>(self, op: F) -> Result<U, E>
-//     where
-//         E: std::convert::From<E2>;
-// }
-
-// impl<T, E> CustomAndThen<T, E> for Result<T, E> {
-//     fn and_then2<U, E2, F: FnOnce(T) -> Result<U, E2>>(self, op: F) -> Result<U, E>
-//     where
-//         E: std::convert::From<E2>,
-//     {
-//         match self {
-//             Ok(t) => op(t).map_err(From::from),
-//             Err(e) => Err(e),
-//         }
-//     }
-// }
-
-/// Retrieve DID documents.
+/// Retrieve DID document.
 ///
 /// * `id` - requested id, e.g. `alice`
 ///
@@ -48,11 +31,13 @@ extern crate rocket;
 fn get(config: &rocket::State<Config>, id: &str) -> Result<Json<Document>, DIDError> {
     get_filename_from_id(&config.didstore, id)
         .map_err(|e| DIDError::NoFileName(e.to_string()))
-        // debugging:
-        // .map(|f| {
-        //     f.to_str().map(|ff| println!("f {}", ff));
-        //     f
-        // })
+        .and_then(|filename| {
+            if Path::exists(Path::new(&filename)) {
+                Ok(filename)
+            } else {
+                Err(DIDError::DIDNotFound("DID not found".to_string()))
+            }
+        })
         .and_then(|filename| {
             fs::read(filename).map_err(|e| {
                 // TODO: return default value, maybe
@@ -77,7 +62,7 @@ fn getroot(config: &rocket::State<Config>, id: &str) -> Result<Json<Document>, D
 }
 
 /// Creates a DID document at the given position. The DID Document's id must match the DID the
-/// computed DID at this position.
+/// computed DID at this position otherwise the DID wouldn't be manageable.
 ///
 /// - `id` - id part of the did:web method as specified in https://w3c-ccg.github.io/did-method-web/
 /// - `doc` - JSON-LD DID Document as specified in https://w3c.github.io/did-core/
@@ -86,7 +71,6 @@ fn getroot(config: &rocket::State<Config>, id: &str) -> Result<Json<Document>, D
 ///
 /// * Implement authentication via some fitting method, JWT or actual signed requests via a private
 ///   key
-/// * Verify that the DID in the Document matches the computed DID
 #[post("/v1/web/<id>/did.json", data = "<doc>")]
 fn create(
     config: &rocket::State<Config>,
@@ -102,13 +86,15 @@ fn create(
     // 5. the parts of the id a matches against allowed characters
     // 6. then the whole DID is generated
 
-    let computed_did = match DIDWeb::new(&config.domainname, &config.did_method_path, id) {
-        Ok(did) => did,
-        Err(e) => return Err(e),
-    };
+    let computed_did =
+        match DIDWeb::new(&config.hostname, &config.port, &config.did_method_path, id) {
+            Ok(did) => did,
+            Err(e) => return Err(e),
+        };
+    // guard to ensure that the DID is in general manageable
     if doc.id != format!("{}", computed_did) {
         return Err(DIDError::DIDMismatch(format!(
-            "DIDs don't match. Expected: {} Received: {}",
+            "DIDs don't match - expected: {} received: {}",
             computed_did, doc.id
         )));
     }
@@ -165,8 +151,9 @@ fn delete(id: &str) -> String {
 fn rocket() -> _ {
     rocket::build()
         .manage(Config::new(
-            get_env("DOMAINNAME", "localhost"),
-            get_env("SUBPATH", ""),
+            get_env("EXTERNAL_HOSTNAME", "localhost"),
+            get_env("EXTERNAL_PORT", "8080"),
+            get_env("EXTERNAL_PATH", "/"),
             get_env(
                 "DID_STORE",
                 // by default store all files in $PWD/did_store/

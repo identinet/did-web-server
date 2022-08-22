@@ -6,7 +6,7 @@ help:
 
 # Run and watch application for development purposes
 dev:
-    cargo watch -x run
+    EXTERNAL_PORT=8080 cargo watch -x run
 
 # Build application
 build:

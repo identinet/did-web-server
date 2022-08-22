@@ -17,6 +17,10 @@ pub enum DIDError {
     IllegalCharacter(String),
     #[response(status = 400)] // BadRequest
     DIDMismatch(String),
+    #[response(status = 404)] // NotFound
+    DIDNotFound(String),
+    #[response(status = 400)] // NotFound
+    DIDPortNotAllowed(String),
 }
 
 impl std::error::Error for DIDError {}
@@ -31,6 +35,8 @@ impl fmt::Display for DIDError {
             DIDError::DIDExists(e) => write!(f, "{}", e),
             DIDError::IllegalCharacter(e) => write!(f, "{}", e),
             DIDError::DIDMismatch(e) => write!(f, "{}", e),
+            DIDError::DIDNotFound(e) => write!(f, "{}", e),
+            DIDError::DIDPortNotAllowed(e) => write!(f, "{}", e),
         }
     }
 }

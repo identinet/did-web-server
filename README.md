@@ -64,12 +64,14 @@ EXTERNAL_HOSTNAME=example.com EXTERNAL_PORT=3000 EXTERNAL_PATH=/dids DID_STORE=/
 
 Set the following environment variables according to the requirements:
 
-| **Environment Variable Name** | **Description**                                            | **Required** | **Default**      | **Example**             |
-| ----------------------------- | ---------------------------------------------------------- | ------------ | ---------------- | ----------------------- |
-| `EXTERNAL_HOSTNAME`           | External DNS domain name that the server can be reached at | yes          | `localhost`      | `example.com`           |
-| `EXTERNAL_PORT`               | External port that the server can be reached at            | no           | `443`            | `3000`                  |
-| `EXTERNAL_PATH`               | External path that the DIDs shall be served at             | yes          | `/`              | `/dids`                 |
-| `DID_STORE`                   | Path to the directory that holds the JSON DID files        | yes          | `$PWD/did_store` | `/usr/web-id/did_store` |
+| **Environment Variable Name** | **Description**                                            | **Required** | **Default**                                            | **Example**             |
+| ----------------------------- | ---------------------------------------------------------- | ------------ | ------------------------------------------------------ | ----------------------- |
+| `EXTERNAL_HOSTNAME`           | External DNS domain name that the server can be reached at | yes          | `localhost`                                            | `example.com`           |
+| `EXTERNAL_PORT`               | External port that the server can be reached at            | no           | `443` if `$HOSTNAME != "localhost"`, otherwise `$PORT` | `3000`                  |
+| `EXTERNAL_PATH`               | External path that the DIDs shall be served at             | yes          | `/`                                                    | `/dids`                 |
+| `DID_STORE`                   | Path to the directory that holds the JSON DID files        | yes          | `$PWD/did_store`                                       | `/usr/web-id/did_store` |
+
+<!-- | not yet implemented `PORT`    | Port that the service operates on                          | yes          | `8080`                                                 | `80`                    | -->
 
 ## Development
 
