@@ -1,5 +1,5 @@
 [package]
-name = "did-web-server"
+name = "web-id-server"
 version = "0.1.0"
 edition = "2021"
 
