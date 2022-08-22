@@ -6,25 +6,25 @@ static URL_SEGMENT_SEPARATOR: &'static str = "/";
 
 #[derive(Debug)]
 pub struct DIDWeb {
-    host: DIDSegment, // FIXME: accept host names
+    host: DIDSegment, // FIXME: accept all valid host names and not DIDSegment
     port: u16,        // FIXME: allow only valid ports to be stored here, .. maybe?
     id: Vec<DIDSegment>,
 }
 
 impl fmt::Display for DIDWeb {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut id = "".to_string();
-        for e in self.id.iter() {
-            id.push_str(&format!("{}", e))
-        }
         let host = if self.host.to_string() != "localhost" && self.port == 443 {
             self.host.to_string()
         } else {
             // join host with port host as specified in https://w3c-ccg.github.io/did-method-web/#method-specific-identifier
             format!("{}%3A{}", self.host, self.port)
         };
-
-        // can we collect the string differently?
+        let id = self
+            .id
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>()
+            .join(":");
         write!(
             f,
             "did:{}:{}:{}",
@@ -62,7 +62,7 @@ impl DIDWeb {
         for p in path.split(URL_SEGMENT_SEPARATOR) {
             let _p = p.trim();
             if _p != "" {
-                _id.push(DIDSegment::from(path)?);
+                _id.push(DIDSegment::from(_p)?);
             }
         }
         _id.push(DIDSegment::from(id)?);
@@ -72,6 +72,7 @@ impl DIDWeb {
             id: _id,
         })
     }
+
     pub fn name<'a>() -> &'a str {
         "web"
     }
@@ -113,3 +114,85 @@ impl DIDSegment {
 //         slice.segment.push_str(sep)
 //     }
 // }
+
+#[cfg(test)]
+mod test {
+    use crate::did::*;
+
+    #[test]
+    fn test_did_web() {
+        let host = "";
+        let port = "80";
+        let path = "/";
+        let id = "abc";
+        let result = DIDWeb::new(host, port, path, id);
+        assert!(
+            result.is_err(),
+            "When <host> is empty, then error is returned"
+        );
+
+        let host = "example.com";
+        let port = "";
+        let path = "/";
+        let id = "abc";
+        let result = DIDWeb::new(host, port, path, id).unwrap();
+        assert_eq!(
+            result.to_string(),
+            "did:web:example.com:abc",
+            "When <port> is empty, then the default port is assumed"
+        );
+
+        let host = "localhost";
+        let port = "";
+        let path = "/";
+        let id = "abc";
+        let result = DIDWeb::new(host, port, path, id).unwrap();
+        assert_eq!(
+            result.to_string(),
+            "did:web:localhost%3A8080:abc",
+            "When <port> is empty and host is 'localhost', then the default port 8080 is assumed"
+        );
+
+        let host = "example.com";
+        let port = "";
+        let path = "";
+        let id = "abc";
+        let result = DIDWeb::new(host, port, path, id).unwrap();
+        assert_eq!(
+            result.to_string(),
+            "did:web:example.com:abc",
+            "When <path> is empty, then no path is assumed"
+        );
+
+        let host = "example.com";
+        let port = "";
+        let path = "";
+        let id = "";
+        let result = DIDWeb::new(host, port, path, id);
+        assert!(
+            result.is_err(),
+            "When <id> is empty, then an error is thrown"
+        );
+
+        let host = "example.com";
+        let port = "8443";
+        let path = "a:long/path"; // `:` is the illegal characher
+        let id = "abc";
+        let result = DIDWeb::new(host, port, path, id);
+        assert!(
+            result.is_err(),
+            "When <path> contains illegal characters, then an error is thrown"
+        );
+
+        let host = "example.com";
+        let port = "8443";
+        let path = "a/long/path";
+        let id = "abc";
+        let result = DIDWeb::new(host, port, path, id).unwrap();
+        assert_eq!(
+            result.to_string(),
+            "did:web:example.com%3A8443:a:long:path:abc",
+            "When a custom <host>, <port>, a long <path> and <id> are provided, then the did:web URL is correctly properly"
+        );
+    }
+}
