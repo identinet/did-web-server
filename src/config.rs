@@ -6,7 +6,7 @@
 #[derive(Debug)]
 pub struct Config {
     pub domainname: String,
-    pub path: String,
+    pub did_method_path: String,
     pub didstore: String,
 }
 
@@ -14,7 +14,7 @@ impl Config {
     pub fn new(domainname: String, path: String, didstore: String) -> Config {
         Config {
             domainname,
-            path,
+            did_method_path: path,
             didstore,
         }
     }

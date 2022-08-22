@@ -102,21 +102,16 @@ fn create(
     // 5. the parts of the id a matches against allowed characters
     // 6. then the whole DID is generated
 
-    // TODO: chcek if DID in document matches computed DID
-
-    // TODO: did aufbauen und dann zurckgeben lassen
-    // println!(
-    //     "did:web:d_{}:p_{}/id_{}/did.json",
-    //     &config.domainname,
-    //     &config.path,
-    //     // format!("{}:{}", &config.path, id)
-    //     id
-    // );
-    let computed_did = match DIDWeb::new(&config.domainname, &config.path, id) {
+    let computed_did = match DIDWeb::new(&config.domainname, &config.did_method_path, id) {
         Ok(did) => did,
         Err(e) => return Err(e),
     };
-    // if doc.
+    if doc.id != format!("{}", computed_did) {
+        return Err(DIDError::DIDMismatch(format!(
+            "DIDs don't match. Expected: {} Received: {}",
+            computed_did, doc.id
+        )));
+    }
     get_filename_from_id(&config.didstore, id)
         .map_err(|e| DIDError::NoFileName(e.to_string()))
         .and_then(|filename| {
