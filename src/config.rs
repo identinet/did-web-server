@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 /// Global configuration
 ///
 /// * `hostname` - Hostname for `did:web:<hostname>`. Set via EXTERNAL_HOSTNAME variable, e.g. `example.com`
@@ -9,11 +11,11 @@ pub struct Config {
     pub hostname: String,
     pub port: String,
     pub did_method_path: String,
-    pub didstore: String,
+    pub didstore: PathBuf,
 }
 
 impl Config {
-    pub fn new(hostname: String, port: String, path: String, didstore: String) -> Config {
+    pub fn new(hostname: String, port: String, path: String, didstore: PathBuf) -> Config {
         Config {
             hostname,
             port,

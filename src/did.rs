@@ -1,6 +1,6 @@
 use crate::error::DIDError;
 use regex::Regex;
-use std::fmt;
+use std::{fmt, path::PathBuf};
 
 static URL_SEGMENT_SEPARATOR: &'static str = "/";
 
@@ -36,12 +36,12 @@ impl fmt::Display for DIDWeb {
 }
 
 impl DIDWeb {
-    pub fn new(host: &str, port: &str, path: &str, id: &str) -> Result<DIDWeb, DIDError> {
+    pub fn new(host: &str, port: &str, path: &str, id: &PathBuf) -> Result<DIDWeb, DIDError> {
         let port = match port.parse::<u16>() {
             Ok(port) => {
                 if port == 0 {
                     return Err(DIDError::DIDPortNotAllowed(
-                        "Port '0' out of range, expected 1-65535".to_string(),
+                        "Port '0' out of range, expected value between 1 and 65535".to_string(),
                     ));
                 }
                 port
@@ -65,7 +65,36 @@ impl DIDWeb {
                 _id.push(DIDSegment::from(_p)?);
             }
         }
-        _id.push(DIDSegment::from(id)?);
+
+        // Test if filename is did.json .. otherwise bail out
+        if id
+            .file_name()
+            .and_then(|filename| filename.to_str())
+            .and_then(|filename| {
+                if filename == "did.json" {
+                    Some(filename)
+                } else {
+                    None
+                }
+            })
+            .is_none()
+        {
+            return Err(DIDError::DIDMismatch(
+                "path segment not allowed".to_string(),
+            ));
+        }
+
+        for segment in id.parent().iter() {
+            match segment.to_str() {
+                Some(_segment) => _id.push(DIDSegment::from(_segment)?),
+                None => {
+                    return Err(DIDError::DIDMismatch(
+                        "path segment not allowed".to_string(),
+                    ))
+                }
+            }
+        }
+        // _id.push(DIDSegment::from(id)?);
         Ok(DIDWeb {
             host: DIDSegment::from(host)?,
             port,
@@ -124,18 +153,28 @@ mod test {
         let host = "";
         let port = "80";
         let path = "/";
-        let id = "abc";
-        let result = DIDWeb::new(host, port, path, id);
+        let id = PathBuf::from("abc");
+        let result = DIDWeb::new(host, port, path, &id);
         assert!(
             result.is_err(),
             "When <host> is empty, then error is returned"
         );
 
         let host = "example.com";
+        let port = "80";
+        let path = "/";
+        let id = PathBuf::from("abc");
+        let result = DIDWeb::new(host, port, path, &id);
+        assert!(
+            result.is_err(),
+            "When <id> doesn't end in /did.json, then an error is thrown"
+        );
+
+        let host = "example.com";
         let port = "";
         let path = "/";
-        let id = "abc";
-        let result = DIDWeb::new(host, port, path, id).unwrap();
+        let id = PathBuf::from("abc/did.json");
+        let result = DIDWeb::new(host, port, path, &id).unwrap();
         assert_eq!(
             result.to_string(),
             "did:web:example.com:abc",
@@ -145,8 +184,8 @@ mod test {
         let host = "localhost";
         let port = "";
         let path = "/";
-        let id = "abc";
-        let result = DIDWeb::new(host, port, path, id).unwrap();
+        let id = PathBuf::from("abc/did.json");
+        let result = DIDWeb::new(host, port, path, &id).unwrap();
         assert_eq!(
             result.to_string(),
             "did:web:localhost%3A8080:abc",
@@ -156,8 +195,8 @@ mod test {
         let host = "example.com";
         let port = "";
         let path = "";
-        let id = "abc";
-        let result = DIDWeb::new(host, port, path, id).unwrap();
+        let id = PathBuf::from("abc/did.json");
+        let result = DIDWeb::new(host, port, path, &id).unwrap();
         assert_eq!(
             result.to_string(),
             "did:web:example.com:abc",
@@ -167,8 +206,8 @@ mod test {
         let host = "example.com";
         let port = "";
         let path = "";
-        let id = "";
-        let result = DIDWeb::new(host, port, path, id);
+        let id = PathBuf::from("");
+        let result = DIDWeb::new(host, port, path, &id);
         assert!(
             result.is_err(),
             "When <id> is empty, then an error is thrown"
@@ -177,8 +216,8 @@ mod test {
         let host = "example.com";
         let port = "8443";
         let path = "a:long/path"; // `:` is the illegal characher
-        let id = "abc";
-        let result = DIDWeb::new(host, port, path, id);
+        let id = PathBuf::from("abc/did.json");
+        let result = DIDWeb::new(host, port, path, &id);
         assert!(
             result.is_err(),
             "When <path> contains illegal characters, then an error is thrown"
@@ -187,8 +226,8 @@ mod test {
         let host = "example.com";
         let port = "8443";
         let path = "a/long/path";
-        let id = "abc";
-        let result = DIDWeb::new(host, port, path, id).unwrap();
+        let id = PathBuf::from("abc/did.json");
+        let result = DIDWeb::new(host, port, path, &id).unwrap();
         assert_eq!(
             result.to_string(),
             "did:web:example.com%3A8443:a:long:path:abc",

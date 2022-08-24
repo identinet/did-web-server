@@ -27,6 +27,7 @@ use rocket::serde::json::Json;
 use ssi::did::Document;
 use std::fs;
 use std::io::prelude::*;
+use std::path::PathBuf;
 use std::str;
 
 #[macro_use]
@@ -40,10 +41,10 @@ extern crate rocket;
 /// # TODO
 ///
 /// * implement access to subdirectories, e.g. sales/<id>, admin/<id> .. if that's necessary
-#[get("/v1/web/<id>/did.json")]
+#[get("/v1/web/<id..>")]
 fn get(
     config: &rocket::State<Config>,
-    id: &str,
+    id: PathBuf,
 ) -> (ContentType, Result<Json<Document>, DIDError>) {
     // Content Type for application/did+json
     // TODO: understand how to generate this content type at compile time rather than runtime
@@ -51,8 +52,8 @@ fn get(
     let did_json: ContentType = ContentType(MediaType::new("application", "did+json"));
     (
         did_json,
-        get_filename_from_id(&config.didstore, id)
-            .map_err(|e| DIDError::NoFileName(e.to_string()))
+        get_filename_from_id(&config.didstore, &id)
+            .map_err(|e| DIDError::DIDNotFound(e.to_string()))
             .and_then(|filename| {
                 if filename.exists() {
                     Ok(filename)
@@ -78,10 +79,10 @@ fn get(
     )
 }
 
-#[get("/<id>/did.json")]
+#[get("/<id..>")]
 fn getroot(
     config: &rocket::State<Config>,
-    id: &str,
+    id: PathBuf,
 ) -> (ContentType, Result<Json<Document>, DIDError>) {
     get(config, id)
 }
@@ -98,25 +99,27 @@ fn getroot(
 /// * Implement authentication via some fitting method, JWT or actual signed requests via a private
 ///   key
 /// * Support subfolder so that the DIDs don't only have to live in the top-level folder
-#[post("/v1/web/<id>/did.json", data = "<doc>")]
+#[post("/v1/web/<id..>", data = "<doc>")]
 fn create(
     config: &rocket::State<Config>,
-    id: &str,
+    id: PathBuf,
     doc: Json<Document>,
 ) -> Result<Json<String>, DIDError> {
     // guard to ensure that the DID is in general manageable
+    println!("starting post");
     let computed_did =
-        match DIDWeb::new(&config.hostname, &config.port, &config.did_method_path, id) {
+        match DIDWeb::new(&config.hostname, &config.port, &config.did_method_path, &id) {
             Ok(did) => did,
             Err(e) => return Err(e),
         };
+    println!("computed did {}", computed_did);
     if doc.id != format!("{}", computed_did) {
         return Err(DIDError::DIDMismatch(format!(
             "DIDs don't match - expected: {} received: {}",
             computed_did, doc.id
         )));
     }
-    get_filename_from_id(&config.didstore, id)
+    get_filename_from_id(&config.didstore, &id)
         .map_err(|e| DIDError::NoFileName(e.to_string()))
         .and_then(|filename| {
             if filename.exists() {
@@ -172,16 +175,16 @@ fn update(id: &str, _presentation: &str) -> String {
 /// # TODO
 ///
 /// * Implement authorization - admin + user who can delete their own id .. good?
-#[delete("/v1/web/<id>/did.json")]
-fn delete(config: &rocket::State<Config>, id: &str) -> Result<Json<String>, DIDError> {
+#[delete("/v1/web/<id..>")]
+fn delete(config: &rocket::State<Config>, id: PathBuf) -> Result<Json<String>, DIDError> {
     // test existence - if not, then return 404
     // try deletion - return 503 if something goes wrong, otherwise 200
     let computed_did =
-        match DIDWeb::new(&config.hostname, &config.port, &config.did_method_path, id) {
+        match DIDWeb::new(&config.hostname, &config.port, &config.did_method_path, &id) {
             Ok(did) => did,
             Err(e) => return Err(e),
         };
-    get_filename_from_id(&config.didstore, id)
+    get_filename_from_id(&config.didstore, &id)
         .map_err(|e| DIDError::NoFileName(e.to_string()))
         .and_then(|filename| {
             if filename.exists() {
@@ -211,13 +214,13 @@ fn rocket() -> _ {
             get_env("EXTERNAL_HOSTNAME", "localhost"),
             get_env("EXTERNAL_PORT", "8080"),
             get_env("EXTERNAL_PATH", "/"),
-            get_env(
+            PathBuf::from(&get_env(
                 "DID_STORE",
                 // by default store all files in $PWD/did_store/
                 &std::env::current_dir()
                     .map(|val| val.join("did_store").to_str().unwrap_or(".").to_string())
                     .unwrap_or_else(|_| ".".to_string()),
-            ),
+            )),
         ))
         .mount("/", routes![get, getroot, create, update, delete])
 }
