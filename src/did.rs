@@ -22,7 +22,7 @@ impl fmt::Display for DIDWeb {
         let id = self
             .id
             .iter()
-            .map(|s| s.to_string())
+            .map(|s| s.to_string()) // TODO: maybe I can extend DIDSgement to implement the Concat/Join traits to allow a direct join
             .collect::<Vec<String>>()
             .join(":");
         write!(
