@@ -1,3 +1,15 @@
+// TODO: Things to consider:
+//
+// * [ ] compatibility with the did:web API .. not sure if there's much imposed: https://w3c-ccg.github.io/did-method-web/
+// * [+] return content type application/did+json for get requests
+// * [ ] support .well-known/did.json documents
+// * [ ] support subpaths for storing DIDs
+// * [ ] ensure that the web-did-resolver test suite passes: https://github.com/decentralized-identity/web-did-resolver/blob/master/src/__tests__/resolver.test.ts
+// * [ ] rethink the API of the service, maybe reserve the admin operations under a specific API endpoint while keeping the user-focused operations at the root level so that the interaction directly happens as intended .. but maybe also the admin operations should happen there
+// * [ ] support additional storage mechanims other than the file system
+// * [ ] maybe add support for a history of documents, including a history of operations and authentications that were used for audit purposes
+// * [ ] think about document integrity verification as proposed here: https://w3c-ccg.github.io/did-method-web/#did-document-integrity-verification
+
 mod config;
 mod did;
 mod error;
@@ -10,6 +22,7 @@ use crate::did::DIDWeb;
 use crate::error::DIDError;
 use crate::store::get_filename_from_id;
 use crate::util::{get_env, log};
+use rocket::http::{ContentType, MediaType};
 use rocket::serde::json::Json;
 use ssi::did::Document;
 use std::fs;
@@ -28,31 +41,48 @@ extern crate rocket;
 ///
 /// * implement access to subdirectories, e.g. sales/<id>, admin/<id> .. if that's necessary
 #[get("/v1/web/<id>/did.json")]
-fn get(config: &rocket::State<Config>, id: &str) -> Result<Json<Document>, DIDError> {
-    get_filename_from_id(&config.didstore, id)
-        .map_err(|e| DIDError::NoFileName(e.to_string()))
-        .and_then(|filename| {
-            if filename.exists() {
-                Ok(filename)
-            } else {
-                Err(DIDError::DIDNotFound("DID not found".to_string()))
-            }
-        })
-        .and_then(|filename| fs::read(filename).map_err(|e| DIDError::NoFileRead(e.to_string())))
-        .and_then(|b| String::from_utf8(b).map_err(|e| DIDError::ContentConversion(e.to_string())))
-        .and_then(|ref s| {
-            serde_json::from_str::<Document>(s)
-                .map_err(|e| DIDError::ContentConversion(e.to_string()))
-        })
-        // .and_then(|ref d: Document| {
-        //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
-        // })
-        .map_err(log("get, got error:"))
-        .map(Json)
+fn get(
+    config: &rocket::State<Config>,
+    id: &str,
+) -> (ContentType, Result<Json<Document>, DIDError>) {
+    // Content Type for application/did+json
+    // TODO: understand how to generate this content type at compile time rather than runtime
+    // TODO: maybe return json_api for errors?
+    let did_json: ContentType = ContentType(MediaType::new("application", "did+json"));
+    (
+        did_json,
+        get_filename_from_id(&config.didstore, id)
+            .map_err(|e| DIDError::NoFileName(e.to_string()))
+            .and_then(|filename| {
+                if filename.exists() {
+                    Ok(filename)
+                } else {
+                    Err(DIDError::DIDNotFound("DID not found".to_string()))
+                }
+            })
+            .and_then(|filename| {
+                fs::read(filename).map_err(|e| DIDError::NoFileRead(e.to_string()))
+            })
+            .and_then(|b| {
+                String::from_utf8(b).map_err(|e| DIDError::ContentConversion(e.to_string()))
+            })
+            .and_then(|ref s| {
+                serde_json::from_str::<Document>(s)
+                    .map_err(|e| DIDError::ContentConversion(e.to_string()))
+            })
+            // .and_then(|ref d: Document| {
+            //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
+            // })
+            .map_err(log("get, got error:"))
+            .map(Json),
+    )
 }
 
 #[get("/<id>/did.json")]
-fn getroot(config: &rocket::State<Config>, id: &str) -> Result<Json<Document>, DIDError> {
+fn getroot(
+    config: &rocket::State<Config>,
+    id: &str,
+) -> (ContentType, Result<Json<Document>, DIDError>) {
     get(config, id)
 }
 
@@ -135,6 +165,13 @@ fn update(id: &str, _presentation: &str) -> String {
     // When using this endpoint, the user needs to authenticate with a signed DID document in a VP
 }
 
+/// Deletes a DID Document if the identity is authorized to perform this operation.
+///
+/// * `presentation` - verifable presentation that holds the updated DID Document
+///
+/// # TODO
+///
+/// * Implement authorization - admin + user who can delete their own id .. good?
 #[delete("/v1/web/<id>/did.json")]
 fn delete(config: &rocket::State<Config>, id: &str) -> Result<Json<String>, DIDError> {
     // test existence - if not, then return 404
