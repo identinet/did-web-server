@@ -38,6 +38,15 @@ pub fn get_filename_from_id<'a>(base_dir: &PathBuf, id: &PathBuf) -> Result<Path
                 .to_str()
                 .and_then(|_f| if _f == "did.json" { id.parent() } else { None })
         })
+        .and_then(|id_file| {
+            if id_file.is_absolute() {
+                id_file.strip_prefix("/").ok() // when id is an absolute path, joining it with
+                                               // base_dir will overwrite base_dir's value.
+                                               // Therefore, ensure that path is releative
+            } else {
+                Some(id_file)
+            }
+        })
         // .map(|x| {
         //     match x.to_str() {
         //         Some(s) => println!("parent path res {}, {}", s, "id"),
@@ -101,6 +110,21 @@ mod test {
             ),
             Err(_) => {
                 panic!("When <id> and <base_dir> can be combined to an absolute path, then succeed")
+            }
+        }
+
+        let id = PathBuf::from(".well-known/did.json");
+        let base_dir = PathBuf::from(&format!("{}{}", env!("CARGO_MANIFEST_DIR"), "/dids"));
+        let id_with_extension = ".well-known.json";
+        let result = get_filename_from_id(&base_dir, &id);
+        match result {
+            Ok(r) => assert_eq!(
+                r,
+                base_dir.join(id_with_extension),
+                "When <id> is .well-known/did.json and <base_dir> can be combined to an absolute path, then succeed"
+            ),
+            Err(_) => {
+                panic!("When <id> is .well-known/did.json and <base_dir> can be combined to an absolute path, then succeed")
             }
         }
     }

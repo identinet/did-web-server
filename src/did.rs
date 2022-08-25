@@ -25,13 +25,11 @@ impl fmt::Display for DIDWeb {
             .map(|s| s.to_string()) // TODO: maybe I can extend DIDSgement to implement the Concat/Join traits to allow a direct join
             .collect::<Vec<String>>()
             .join(":");
-        write!(
-            f,
-            "did:{}:{}:{}",
-            DIDWeb::name(),
-            host,
-            id // self.id.iter().collect::<String>()
-        )
+        if id == "" {
+            write!(f, "did:{}:{}", DIDWeb::name(), host,)
+        } else {
+            write!(f, "did:{}:{}:{}", DIDWeb::name(), host, id)
+        }
     }
 }
 
@@ -84,17 +82,21 @@ impl DIDWeb {
             ));
         }
 
-        for segment in id.parent().iter() {
-            match segment.to_str() {
-                Some(_segment) => _id.push(DIDSegment::from(_segment)?),
-                None => {
-                    return Err(DIDError::DIDMismatch(
-                        "path segment not allowed".to_string(),
-                    ))
+        if id.is_absolute() && *id != PathBuf::from("/.well-known/did.json")
+            || id.is_relative() && *id != PathBuf::from(".well-known/did.json")
+        {
+            for segment in id.parent().iter() {
+                match segment.to_str() {
+                    Some(_segment) => _id.push(DIDSegment::from(_segment)?),
+                    None => {
+                        return Err(DIDError::DIDMismatch(
+                            "path segment not allowed".to_string(),
+                        ))
+                    }
                 }
             }
         }
-        // _id.push(DIDSegment::from(id)?);
+
         Ok(DIDWeb {
             host: DIDSegment::from(host)?,
             port,
@@ -232,6 +234,28 @@ mod test {
             result.to_string(),
             "did:web:example.com%3A8443:a:long:path:abc",
             "When a custom <host>, <port>, a long <path> and <id> are provided, then the did:web URL is correctly properly"
+        );
+
+        let host = "example.com";
+        let port = "8443";
+        let path = "";
+        let id = PathBuf::from("/.well-known/did.json");
+        let result = DIDWeb::new(host, port, path, &id).unwrap();
+        assert_eq!(
+            result.to_string(),
+            "did:web:example.com%3A8443",
+            "When /.well-known/did.json is requested, then the computed DID is just did:web::hostname%3A8443 "
+        );
+
+        let host = "example.com";
+        let port = "8443";
+        let path = "";
+        let id = PathBuf::from(".well-known/did.json");
+        let result = DIDWeb::new(host, port, path, &id).unwrap();
+        assert_eq!(
+            result.to_string(),
+            "did:web:example.com%3A8443",
+            "When .well-known/did.json is requested, then the computed DID is just did:web::hostname%3A8443 "
         );
     }
 }

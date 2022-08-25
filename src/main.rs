@@ -53,6 +53,10 @@ fn get(
     (
         did_json,
         get_filename_from_id(&config.didstore, &id)
+            // .map(|f| {
+            //     f.to_str().map(log("path"));
+            //     f
+            // })
             .map_err(|e| DIDError::DIDNotFound(e.to_string()))
             .and_then(|filename| {
                 if filename.exists() {
@@ -61,6 +65,10 @@ fn get(
                     Err(DIDError::DIDNotFound("DID not found".to_string()))
                 }
             })
+            // .map(|f| {
+            //     f.to_str().map(log("path"));
+            //     f
+            // })
             .and_then(|filename| {
                 fs::read(filename).map_err(|e| DIDError::NoFileRead(e.to_string()))
             })
@@ -77,6 +85,11 @@ fn get(
             .map_err(log("get, got error:"))
             .map(Json),
     )
+}
+
+#[get("/.well-known/did.json")]
+fn getwellknown(config: &rocket::State<Config>) -> (ContentType, Result<Json<Document>, DIDError>) {
+    get(config, PathBuf::from("/.well-known/did.json"))
 }
 
 #[get("/<id..>")]
@@ -222,5 +235,8 @@ fn rocket() -> _ {
                     .unwrap_or_else(|_| ".".to_string()),
             )),
         ))
-        .mount("/", routes![get, getroot, create, update, delete])
+        .mount(
+            "/",
+            routes![get, getroot, getwellknown, create, update, delete],
+        )
 }
