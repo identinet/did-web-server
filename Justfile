@@ -6,7 +6,7 @@ help:
 
 # Run and watch application for development purposes
 dev:
-    EXTERNAL_PORT=8080 cargo watch -x run
+    EXTERNAL_PORT=8080 cargo watch -w src -x run
 
 # Build application
 build:
@@ -26,7 +26,7 @@ test tests='':
 
 # Development test application
 dev-test tests='':
-    cargo watch -x 'test {{ tests }}'
+    cargo watch -w src -x 'test {{ tests }}'
 
 # Clean build folder
 clean:
