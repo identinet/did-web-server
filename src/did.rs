@@ -1,8 +1,21 @@
 use crate::error::DIDError;
 use regex::Regex;
+use rocket::http::{ContentType, MediaType};
 use std::{fmt, path::PathBuf};
 
 static URL_SEGMENT_SEPARATOR: &'static str = "/";
+
+pub struct DIDContentTypes;
+
+impl DIDContentTypes {
+    pub const DID_LD_JSON: ContentType = ContentType(MediaType::const_new(
+        "application",
+        "did+ld+json",
+        &[("", "")],
+    ));
+    // pub const DID_JSON: ContentType =
+    //     ContentType(MediaType::const_new("application", "did+json", &[("", "")]));
+}
 
 #[derive(Debug)]
 pub struct DIDWeb {

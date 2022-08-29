@@ -18,11 +18,11 @@ mod util;
 
 // use serde::{Deserialize, Serialize};
 use crate::config::Config;
-use crate::did::DIDWeb;
+use crate::did::{DIDContentTypes, DIDWeb};
 use crate::error::DIDError;
 use crate::store::get_filename_from_id;
 use crate::util::{get_env, log};
-use rocket::http::{ContentType, MediaType};
+use rocket::http::ContentType;
 use rocket::serde::json::Json;
 use ssi::did::Document;
 use std::fs;
@@ -49,42 +49,49 @@ fn get(
     // Content Type for application/did+json
     // TODO: understand how to generate this content type at compile time rather than runtime
     // TODO: maybe return json_api for errors?
-    let did_json: ContentType = ContentType(MediaType::new("application", "did+json"));
-    (
-        did_json,
-        get_filename_from_id(&config.didstore, &id)
-            // .map(|f| {
-            //     f.to_str().map(log("path"));
-            //     f
-            // })
-            .map_err(|e| DIDError::DIDNotFound(e.to_string()))
-            .and_then(|filename| {
-                if filename.exists() {
-                    Ok(filename)
-                } else {
-                    Err(DIDError::DIDNotFound("DID not found".to_string()))
-                }
-            })
-            // .map(|f| {
-            //     f.to_str().map(log("path"));
-            //     f
-            // })
-            .and_then(|filename| {
-                fs::read(filename).map_err(|e| DIDError::NoFileRead(e.to_string()))
-            })
-            .and_then(|b| {
-                String::from_utf8(b).map_err(|e| DIDError::ContentConversion(e.to_string()))
-            })
-            .and_then(|ref s| {
-                serde_json::from_str::<Document>(s)
-                    .map_err(|e| DIDError::ContentConversion(e.to_string()))
-            })
-            // .and_then(|ref d: Document| {
-            //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
-            // })
-            .map_err(log("get, got error:"))
-            .map(Json),
-    )
+
+    let result = get_filename_from_id(&config.didstore, &id)
+        // .map(|f| {
+        //     f.to_str().map(log("path"));
+        //     f
+        // })
+        .map_err(|e| DIDError::DIDNotFound(e.to_string()))
+        .and_then(|filename| {
+            if filename.exists() {
+                Ok(filename)
+            } else {
+                Err(DIDError::DIDNotFound("DID not found".to_string()))
+            }
+        })
+        // .map(|f| {
+        //     f.to_str().map(log("path"));
+        //     f
+        // })
+        .and_then(|filename| fs::read(filename).map_err(|e| DIDError::NoFileRead(e.to_string())))
+        .and_then(|b| String::from_utf8(b).map_err(|e| DIDError::ContentConversion(e.to_string())))
+        .and_then(|ref s| {
+            serde_json::from_str::<Document>(s)
+                .map_err(|e| DIDError::ContentConversion(e.to_string()))
+        })
+        // .and_then(|ref d: Document| {
+        //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
+        // })
+        .map_err(log("get, got error:"));
+
+    // Apparently, DID documents in the ssi implementation require @context to be present while
+    // it's optional in the spec, see https://w3c.github.io/did-core/#iana-considerations
+    // See https://github.com/spruceid/ssi/issues/458
+    let content_type = match &result {
+        Ok(_diddoc) => {
+            // if diddoc.context {
+            DIDContentTypes::DID_LD_JSON
+            // } else {
+            // DIDContentTypes::DID_JSON
+            // }
+        }
+        Err(_) => ContentType::JSON,
+    };
+    (content_type, result.map(Json))
 }
 
 #[get("/.well-known/did.json")]
