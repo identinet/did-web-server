@@ -1,8 +1,8 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Computes the absolute path to a file with json extension in a base
 /// direcotory and an ID.
-pub fn get_filename_from_id<'a>(base_dir: &PathBuf, id: &PathBuf) -> Result<PathBuf, &'a str> {
+pub fn get_filename_from_id<'a>(base_dir: &Path, id: &Path) -> Result<PathBuf, &'a str> {
     // Path::new(id)
     //     .file_name()
     //     // DEBUG

@@ -3,7 +3,7 @@ use regex::Regex;
 use rocket::http::{ContentType, MediaType};
 use std::{fmt, path::PathBuf};
 
-static URL_SEGMENT_SEPARATOR: &'static str = "/";
+static URL_SEGMENT_SEPARATOR: &str = "/";
 
 pub struct DIDContentTypes;
 
@@ -38,7 +38,7 @@ impl fmt::Display for DIDWeb {
             .map(|s| s.to_string()) // TODO: maybe I can extend DIDSgement to implement the Concat/Join traits to allow a direct join
             .collect::<Vec<String>>()
             .join(":");
-        if id == "" {
+        if id.is_empty() {
             write!(f, "did:{}:{}", DIDWeb::name(), host,)
         } else {
             write!(f, "did:{}:{}:{}", DIDWeb::name(), host, id)
@@ -58,7 +58,7 @@ impl DIDWeb {
                 port
             }
             Err(e) => {
-                if port == "" {
+                if port.is_empty() {
                     if host == "localhost" {
                         8080_u16
                     } else {
@@ -72,7 +72,7 @@ impl DIDWeb {
         let mut _id = vec![];
         for p in path.split(URL_SEGMENT_SEPARATOR) {
             let _p = p.trim();
-            if _p != "" {
+            if !_p.is_empty() {
                 _id.push(DIDSegment::from(_p)?);
             }
         }
@@ -98,6 +98,7 @@ impl DIDWeb {
         if id.is_absolute() && *id != PathBuf::from("/.well-known/did.json")
             || id.is_relative() && *id != PathBuf::from(".well-known/did.json")
         {
+            // TODO: I don't understand the clippy suggestion .. does it apply here?
             for segment in id.parent().iter() {
                 match segment.to_str() {
                     Some(_segment) => _id.push(DIDSegment::from(_segment)?),
