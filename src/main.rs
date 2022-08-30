@@ -11,6 +11,7 @@
 // * [ ] think about document integrity verification as proposed here: https://w3c-ccg.github.io/did-method-web/#did-document-integrity-verification
 
 mod config;
+mod content_types;
 mod did;
 mod error;
 mod store;
@@ -18,39 +19,24 @@ mod util;
 
 // use serde::{Deserialize, Serialize};
 use crate::config::Config;
-use crate::did::{DIDContentTypes, DIDWeb};
+use crate::content_types::DIDContentTypes;
+use crate::did::{DIDWeb, ProofParameters};
 use crate::error::DIDError;
 use crate::store::get_filename_from_id;
 use crate::util::{get_env, log};
 use rocket::http::ContentType;
 use rocket::serde::json::Json;
 use ssi::did::Document;
+use ssi::vc::Presentation;
 use std::fs;
 use std::io::prelude::*;
 use std::path::PathBuf;
-use std::str;
 
 #[macro_use]
 extern crate rocket;
 
-/// Retrieve DID document.
-///
-/// - `id` - requested id, e.g. `alice`
-/// - returns JSON encoded DID document
-///
-/// # TODO
-///
-/// * implement access to subdirectories, e.g. sales/<id>, admin/<id> .. if that's necessary
-#[get("/v1/web/<id..>")]
-fn get(
-    config: &rocket::State<Config>,
-    id: PathBuf,
-) -> (ContentType, Result<Json<Document>, DIDError>) {
-    // Content Type for application/did+json
-    // TODO: understand how to generate this content type at compile time rather than runtime
-    // TODO: maybe return json_api for errors?
-
-    let result = get_filename_from_id(&config.didstore, &id)
+fn retrieve_document(config: &rocket::State<Config>, id: PathBuf) -> Result<Document, DIDError> {
+    get_filename_from_id(&config.didstore, &id)
         // .map(|f| {
         //     f.to_str().map(log("path"));
         //     f
@@ -73,14 +59,67 @@ fn get(
             serde_json::from_str::<Document>(s)
                 .map_err(|e| DIDError::ContentConversion(e.to_string()))
         })
+}
+
+/// Retrieve DID document proof parameters.
+///
+/// - `config` Global Rocket configuration
+/// - `id` - requested id, e.g. `alice`
+/// - returns ProofParameters
+#[allow(clippy::unused_unit)]
+#[get("/v1/web/<id..>?proofParameters")]
+fn get_proof_parameters(
+    config: &rocket::State<Config>,
+    id: PathBuf,
+) -> Result<Json<ProofParameters>, DIDError> {
+    println!("proof");
+    retrieve_document(config, id)
+        .and_then(|ref d: Document| ProofParameters::new(config, d))
+        .map_err(log("get, got error:"))
+        .map(Json)
+}
+
+#[allow(clippy::wrong_self_convention)]
+#[get("/<id..>?proofParameters")]
+fn get_proof_parameters_root(
+    config: &rocket::State<Config>,
+    id: PathBuf,
+) -> Result<Json<ProofParameters>, DIDError> {
+    get_proof_parameters(config, id)
+}
+
+#[allow(clippy::wrong_self_convention)]
+#[get("/v1/web/.well-known/did.json?proofParameters")]
+fn get_proof_parameters_wellknown(
+    config: &rocket::State<Config>,
+) -> Result<Json<ProofParameters>, DIDError> {
+    get_proof_parameters(config, PathBuf::from("/.well-known/did.json"))
+}
+
+#[allow(clippy::wrong_self_convention)]
+#[get("/.well-known/did.json?proofParameters")]
+fn get_proof_parameters_wellknown_root(
+    config: &rocket::State<Config>,
+) -> Result<Json<ProofParameters>, DIDError> {
+    get_proof_parameters(config, PathBuf::from("/.well-known/did.json"))
+}
+
+/// Retrieve DID document.
+///
+/// - `config` Global Rocket configuration
+/// - `id` - requested id, e.g. `alice`
+/// - returns JSON encoded DID document
+#[get("/v1/web/<id..>")]
+fn get(
+    config: &rocket::State<Config>,
+    id: PathBuf,
+) -> (ContentType, Result<Json<Document>, DIDError>) {
+    // TODO: maybe return json_api for errors?
+    let result = retrieve_document(config, id)
         // .and_then(|ref d: Document| {
         //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
         // })
         .map_err(log("get, got error:"));
-
-    // Apparently, DID documents in the ssi implementation require @context to be present while
-    // it's optional in the spec, see https://w3c.github.io/did-core/#iana-considerations
-    // See https://github.com/spruceid/ssi/issues/458
     let content_type = match &result {
         Ok(_diddoc) => {
             // if diddoc.context {
@@ -94,17 +133,28 @@ fn get(
     (content_type, result.map(Json))
 }
 
-#[get("/.well-known/did.json")]
-fn getwellknown(config: &rocket::State<Config>) -> (ContentType, Result<Json<Document>, DIDError>) {
-    get(config, PathBuf::from("/.well-known/did.json"))
-}
-
 #[get("/<id..>")]
-fn getroot(
+fn get_root(
     config: &rocket::State<Config>,
     id: PathBuf,
 ) -> (ContentType, Result<Json<Document>, DIDError>) {
     get(config, id)
+}
+
+// Required to explicitly allow access to a path starting with "."
+#[get("/v1/web/.well-known/did.json")]
+fn get_wellknown(
+    config: &rocket::State<Config>,
+) -> (ContentType, Result<Json<Document>, DIDError>) {
+    get(config, PathBuf::from("/.well-known/did.json"))
+}
+
+// Required to explicitly allow access to a path starting with "."
+#[get("/.well-known/did.json")]
+fn get_wellknown_root(
+    config: &rocket::State<Config>,
+) -> (ContentType, Result<Json<Document>, DIDError>) {
+    get(config, PathBuf::from("/.well-known/did.json"))
 }
 
 /// Creates a DID document at the given position. The DID Document's id must match the DID the
@@ -124,21 +174,19 @@ fn create(
     config: &rocket::State<Config>,
     id: PathBuf,
     doc: Json<Document>,
-) -> Result<Json<String>, DIDError> {
+) -> Result<Json<ProofParameters>, DIDError> {
     // guard to ensure that the DID is in general manageable
-    println!("starting post");
-    let computed_did =
-        match DIDWeb::new(&config.hostname, &config.port, &config.did_method_path, &id) {
-            Ok(did) => did,
-            Err(e) => return Err(e),
-        };
-    println!("computed did {}", computed_did);
+    let computed_did = match DIDWeb::did_from_config(config, &id) {
+        Ok(did) => did,
+        Err(e) => return Err(e),
+    };
     if doc.id != format!("{}", computed_did) {
         return Err(DIDError::DIDMismatch(format!(
             "DIDs don't match - expected: {} received: {}",
             computed_did, doc.id
         )));
     }
+    let document = doc.into_inner();
     get_filename_from_id(&config.didstore, &id)
         .map_err(|e| DIDError::NoFileName(e.to_string()))
         .and_then(|filename| {
@@ -160,7 +208,7 @@ fn create(
                     // rocket::serde::json::to_string(&doc)
                     // ah, ich muss da direkt das document hineinstecken, denn das ist serializable ..
                     // wie kommen an das document?
-                    serde_json::to_string(&doc.into_inner())
+                    serde_json::to_string(&document)
                         .map_err(|e| DIDError::ContentConversion(e.to_string()))
                         .and_then(|s| {
                             f.write(s.as_bytes())
@@ -169,8 +217,8 @@ fn create(
                 })
         })
         .map_err(log("post, got error:"))
-        // Return the DID
-        .map(|_| Json(computed_did.to_string()))
+        .and_then(|_| ProofParameters::new(config, &document))
+        .map(Json)
 }
 
 /// Updates a DID Document if the identity is authorized to perform this operation.
@@ -178,9 +226,31 @@ fn create(
 /// * `presentation` - verifable presentation that holds the updated DID Document
 ///
 /// # TODO
-#[put("/v1/web/<id>/did.json", data = "<_presentation>")]
-fn update(id: &str, _presentation: &str) -> String {
-    format!("Did doc: did:web:identinet.io:vc/{}/did.json", id)
+///
+/// * Prevent replay attacks
+#[put("/v1/web/<id>/did.json", data = "<presentation>")]
+fn update(
+    config: &rocket::State<Config>,
+    id: PathBuf,
+    presentation: Json<Presentation>,
+) -> Result<String, DIDError> {
+    // receive presentation
+    // presentation.verifiable_credential;
+    // compute the DID of the ID that's being accessed
+    let computed_did = match DIDWeb::did_from_config(config, &id) {
+        Ok(did) => did,
+        Err(e) => return Err(e),
+    };
+    // figure out what the contents of the presentation are .. e.g. I need the did document, that's about it
+    // - DID Resolution Response - this is a did document: https://w3c-ccg.github.io/universal-wallet-interop-spec/#DIDResolutionResponse
+    // - Create a custom DID document verifiable credential that stores inside a DID document .. no? or how else would I compute that something is actually a propore document?
+    //   - I could also work with a JWS, just evaluate the signature and I'm done
+    //   - what's the challenge?
+    //   - the signature must encompass the document and the challenge while the challenge and the document are separate and they need to be bound together to ensure that they're both valid
+    //   - reusing the VC issuing capabilities of a wallet might be helpful to make it easy for wallets to implement the functionality
+    // - verify the challenge in the signed presentation to ensure that no replay attack is happening
+    // load DID document
+    Ok(computed_did.to_string())
     // import VP from SSI lib
     // like create, partial updates aren't supported
     // This method requires that the DID already exists .. if the DID doesn't exist POST has to be
@@ -199,11 +269,10 @@ fn update(id: &str, _presentation: &str) -> String {
 fn delete(config: &rocket::State<Config>, id: PathBuf) -> Result<Json<String>, DIDError> {
     // test existence - if not, then return 404
     // try deletion - return 503 if something goes wrong, otherwise 200
-    let computed_did =
-        match DIDWeb::new(&config.hostname, &config.port, &config.did_method_path, &id) {
-            Ok(did) => did,
-            Err(e) => return Err(e),
-        };
+    let computed_did = match DIDWeb::did_from_config(config, &id) {
+        Ok(did) => did,
+        Err(e) => return Err(e),
+    };
     get_filename_from_id(&config.didstore, &id)
         .map_err(|e| DIDError::NoFileName(e.to_string()))
         .and_then(|filename| {
@@ -244,6 +313,18 @@ fn rocket() -> _ {
         ))
         .mount(
             "/",
-            routes![get, getroot, getwellknown, create, update, delete],
+            routes![
+                get_proof_parameters,
+                get_proof_parameters_root,
+                get_proof_parameters_wellknown,
+                get_proof_parameters_wellknown_root,
+                get,
+                get_root,
+                get_wellknown,
+                get_wellknown_root,
+                create,
+                update,
+                delete
+            ],
         )
 }

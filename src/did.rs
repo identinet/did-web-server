@@ -1,26 +1,54 @@
+use crate::config::Config;
 use crate::error::DIDError;
 use regex::Regex;
-use rocket::http::{ContentType, MediaType};
+use serde::{Deserialize, Serialize};
+use sha256::digest;
+use ssi::did::Document;
 use std::{fmt, path::PathBuf};
 
 static URL_SEGMENT_SEPARATOR: &str = "/";
 
-pub struct DIDContentTypes;
-
-impl DIDContentTypes {
-    pub const DID_LD_JSON: ContentType = ContentType(MediaType::const_new(
-        "application",
-        "did+ld+json",
-        &[("", "")],
-    ));
-    // pub const DID_JSON: ContentType =
-    //     ContentType(MediaType::const_new("application", "did+json", &[("", "")]));
+/// ProofParameters are reqiured to compute the Verifiable Presentation for updating the stored DID
+/// Dcoument.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ProofParameters {
+    /// Challenge is the sha256 hash of the current DID Document
+    challenge: String,
+    domain: String,
+    proof_purpose: String,
+    did: String,
 }
 
-#[derive(Debug)]
+impl ProofParameters {
+    /// Create a new ProofParameters struct
+    pub fn new(
+        config: &rocket::State<Config>,
+        doc: &Document,
+    ) -> Result<ProofParameters, DIDError> {
+        serde_json::to_string(doc)
+            .map_err(|e| DIDError::ContentConversion(e.to_string()))
+            .map(|s| ProofParameters {
+                challenge: digest(s),
+                domain: config.hostname.to_string(),
+                proof_purpose: "authentication".to_string(),
+                did: doc.id.to_string(),
+            })
+    }
+}
+
+impl fmt::Display for ProofParameters {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        serde_json::to_string(&self)
+            .map_err(|_| fmt::Error)
+            .and_then(|s| write!(f, "{}", s))
+    }
+}
+
+/// DIDWeb represents a DID of the DID Web method, see https://w3c-ccg.github.io/did-method-web/
+#[derive(Debug, Deserialize, Serialize)]
 pub struct DIDWeb {
-    host: DIDSegment, // FIXME: accept all valid host names and not DIDSegment
-    port: u16,        // FIXME: allow only valid ports to be stored here, .. maybe?
+    host: DIDSegment, // FIXME: accept all valid host names and not just DIDSegment
+    port: u16, // FIXME: allow only valid ports to be stored here, .. maybe? create a custom type that excludes 0
     id: Vec<DIDSegment>,
 }
 
@@ -99,6 +127,7 @@ impl DIDWeb {
             || id.is_relative() && *id != PathBuf::from(".well-known/did.json")
         {
             // TODO: I don't understand the clippy suggestion .. does it apply here?
+            #[allow(clippy::for_loops_over_fallibles)]
             for segment in id.parent().iter() {
                 match segment.to_str() {
                     Some(_segment) => _id.push(DIDSegment::from(_segment)?),
@@ -118,12 +147,24 @@ impl DIDWeb {
         })
     }
 
+    /// Returns the name of the DID method.
     pub fn name<'a>() -> &'a str {
         "web"
     }
+
+    /// Builds DID from the service configuration and id.
+    ///
+    /// * `config` - service configuration.
+    /// * `id` - requested id.
+    pub fn did_from_config(
+        config: &rocket::State<Config>,
+        id: &PathBuf,
+    ) -> Result<DIDWeb, DIDError> {
+        DIDWeb::new(&config.hostname, &config.port, &config.did_method_path, id)
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 struct DIDSegment(String);
 
 impl fmt::Display for DIDSegment {
