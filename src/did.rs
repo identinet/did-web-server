@@ -4,6 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
 use ssi::did::Document;
+use ssi::vc::ProofPurpose;
 use std::{fmt, path::PathBuf};
 
 static URL_SEGMENT_SEPARATOR: &str = "/";
@@ -13,10 +14,10 @@ static URL_SEGMENT_SEPARATOR: &str = "/";
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ProofParameters {
     /// Challenge is the sha256 hash of the current DID Document
-    challenge: String,
-    domain: String,
-    proof_purpose: String,
-    did: String,
+    pub challenge: String,
+    pub domain: String,
+    pub proof_purpose: ProofPurpose,
+    pub did: String,
 }
 
 impl ProofParameters {
@@ -30,7 +31,7 @@ impl ProofParameters {
             .map(|s| ProofParameters {
                 challenge: digest(s),
                 domain: config.hostname.to_string(),
-                proof_purpose: "authentication".to_string(),
+                proof_purpose: ProofPurpose::Authentication,
                 did: doc.id.to_string(),
             })
     }

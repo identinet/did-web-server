@@ -19,8 +19,10 @@ pub enum DIDError {
     DIDMismatch(String),
     #[response(status = 404)] // NotFound
     DIDNotFound(String),
-    #[response(status = 400)] // NotFound
+    #[response(status = 400)] // Bad Request
     DIDPortNotAllowed(String),
+    #[response(status = 404)] // Bad Request
+    PresentationInvalid(String),
 }
 
 impl std::error::Error for DIDError {}
@@ -37,6 +39,7 @@ impl fmt::Display for DIDError {
             DIDError::DIDMismatch(e) => write!(f, "{}", e),
             DIDError::DIDNotFound(e) => write!(f, "{}", e),
             DIDError::DIDPortNotAllowed(e) => write!(f, "{}", e),
+            DIDError::PresentationInvalid(e) => write!(f, "{}", e),
         }
     }
 }

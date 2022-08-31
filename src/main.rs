@@ -1,10 +1,13 @@
 // TODO: Things to consider:
 //
+// * [ ] implement authentication when posting documents via JWT?
+// * [ ] implement authentication when putting documents via Verifiable Presentations
 // * [ ] compatibility with the did:web API .. not sure if there's much imposed: https://w3c-ccg.github.io/did-method-web/
-// * [+] return content type application/did+json for get requests
-// * [ ] support .well-known/did.json documents
-// * [ ] support subpaths for storing DIDs
-// * [ ] ensure that the web-did-resolver test suite passes: https://github.com/decentralized-identity/web-did-resolver/blob/master/src/__tests__/resolver.test.ts
+// * [ ] compatibility with the universal registrar API?
+// * [x] return content type application/did+json for get requests
+// * [x] support .well-known/did.json documents
+// * [x] support subpaths for storing DIDs
+// * [x] ensure that the web-did-resolver test suite passes: https://github.com/decentralized-identity/web-did-resolver/blob/master/src/__tests__/resolver.test.ts
 // * [ ] rethink the API of the service, maybe reserve the admin operations under a specific API endpoint while keeping the user-focused operations at the root level so that the interaction directly happens as intended .. but maybe also the admin operations should happen there
 // * [ ] support additional storage mechanims other than the file system
 // * [ ] maybe add support for a history of documents, including a history of operations and authentications that were used for audit purposes
@@ -27,7 +30,7 @@ use crate::util::{get_env, log};
 use rocket::http::ContentType;
 use rocket::serde::json::Json;
 use ssi::did::Document;
-use ssi::vc::Presentation;
+use ssi::vc::{LinkedDataProofOptions, Presentation};
 use std::fs;
 use std::io::prelude::*;
 use std::path::PathBuf;
@@ -35,6 +38,11 @@ use std::path::PathBuf;
 #[macro_use]
 extern crate rocket;
 
+/// Retrieve stored DID Document.
+///
+/// - `config` Global Rocket configuration
+/// - `id` - requested id, e.g. `alice`
+/// - returns Result<Document, DIDError>
 fn retrieve_document(config: &rocket::State<Config>, id: PathBuf) -> Result<Document, DIDError> {
     get_filename_from_id(&config.didstore, &id)
         // .map(|f| {
@@ -42,6 +50,7 @@ fn retrieve_document(config: &rocket::State<Config>, id: PathBuf) -> Result<Docu
         //     f
         // })
         .map_err(|e| DIDError::DIDNotFound(e.to_string()))
+        // TODO: use let doc = match Document::from_json(include_str!("../tests/did-example-foo.json")) {
         .and_then(|filename| {
             if filename.exists() {
                 Ok(filename)
@@ -72,7 +81,6 @@ fn get_proof_parameters(
     config: &rocket::State<Config>,
     id: PathBuf,
 ) -> Result<Json<ProofParameters>, DIDError> {
-    println!("proof");
     retrieve_document(config, id)
         .and_then(|ref d: Document| ProofParameters::new(config, d))
         .map_err(log("get, got error:"))
@@ -114,6 +122,7 @@ fn get(
     config: &rocket::State<Config>,
     id: PathBuf,
 ) -> (ContentType, Result<Json<Document>, DIDError>) {
+    // TODO: verify that the DID in the doc is equal to the DID that has been requested - bail out otherwise
     // TODO: maybe return json_api for errors?
     let result = retrieve_document(config, id)
         // .and_then(|ref d: Document| {
@@ -169,6 +178,7 @@ fn get_wellknown_root(
 /// * Implement authentication via some fitting method, JWT or actual signed requests via a private
 ///   key
 /// * Support subfolder so that the DIDs don't only have to live in the top-level folder
+/// * implement .well-known support
 #[post("/v1/web/<id..>", data = "<doc>")]
 fn create(
     config: &rocket::State<Config>,
@@ -228,34 +238,85 @@ fn create(
 /// # TODO
 ///
 /// * Prevent replay attacks
+/// * implement .well-known support
 #[put("/v1/web/<id>/did.json", data = "<presentation>")]
 fn update(
     config: &rocket::State<Config>,
     id: PathBuf,
     presentation: Json<Presentation>,
-) -> Result<String, DIDError> {
-    // receive presentation
-    // presentation.verifiable_credential;
-    // compute the DID of the ID that's being accessed
-    let computed_did = match DIDWeb::did_from_config(config, &id) {
-        Ok(did) => did,
-        Err(e) => return Err(e),
-    };
-    // figure out what the contents of the presentation are .. e.g. I need the did document, that's about it
-    // - DID Resolution Response - this is a did document: https://w3c-ccg.github.io/universal-wallet-interop-spec/#DIDResolutionResponse
-    // - Create a custom DID document verifiable credential that stores inside a DID document .. no? or how else would I compute that something is actually a propore document?
-    //   - I could also work with a JWS, just evaluate the signature and I'm done
-    //   - what's the challenge?
-    //   - the signature must encompass the document and the challenge while the challenge and the document are separate and they need to be bound together to ensure that they're both valid
-    //   - reusing the VC issuing capabilities of a wallet might be helpful to make it easy for wallets to implement the functionality
-    // - verify the challenge in the signed presentation to ensure that no replay attack is happening
-    // load DID document
-    Ok(computed_did.to_string())
-    // import VP from SSI lib
-    // like create, partial updates aren't supported
-    // This method requires that the DID already exists .. if the DID doesn't exist POST has to be
-    // used instead
-    // When using this endpoint, the user needs to authenticate with a signed DID document in a VP
+) -> Result<Json<ProofParameters>, DIDError> {
+    if presentation.validate().is_err() {
+        return Err(DIDError::PresentationInvalid(
+            "Presentation invalid, proof missing".to_string(),
+        ));
+    }
+
+    // retrieve proof parameters required to verify the correctness of the presentation
+    let doc = retrieve_document(config, id)?;
+    let proof_parameters = ProofParameters::new(config, &doc)?;
+
+    // verify that at least one proof refers to the controller of this DID; other proofs are
+    // ignored for this case
+    let authentication_methods_in_document: Vec<String> = doc
+        .verification_method
+        .map(|verification_methods| {
+            verification_methods
+                .iter()
+                .map(|verification_method| verification_method.get_id(&proof_parameters.did))
+                .map(|x| x)
+                .collect::<Vec<String>>()
+        })
+        .unwrap_or_else(|| Vec::new());
+    // next, walk through the proof sections and ensure that a least one refers to an ID in the
+    // authentication section of the DID Document
+    // TODO: use ssi::did_resolve::get_verification_methods(did, verification_relationship, resolver) instead?
+    presentation
+        .proof
+        .as_ref()
+        .ok_or_else(|| {
+            DIDError::PresentationInvalid("Presentation invalid, no proof found".to_string())
+        })
+        .and_then(|proofs| {
+            if proofs.any(|proof| {
+                proof
+                    .verification_method
+                    .as_ref()
+                    .and_then(|verification_method| {
+                        // if verification_method.starts_with(&proof_parameters.did) {
+                        if authentication_methods_in_document.contains(&verification_method) {
+                            println!("proof found {}", verification_method);
+                            Some(verification_method)
+                        } else {
+                            println!("proof not found");
+                            None
+                        }
+                    })
+                    .is_some()
+            }) {
+                Ok(true)
+            } else {
+                Err(DIDError::PresentationInvalid(
+                    "Presentation invalid, no proof has been signed by expected did".to_string(),
+                ))
+            }
+        })?;
+
+    let mut _opts = LinkedDataProofOptions::default();
+    _opts.challenge = Some(proof_parameters.challenge.to_string());
+    _opts.domain = Some(proof_parameters.domain.to_string());
+    _opts.proof_purpose = Some(ssi::vc::ProofPurpose::Authentication);
+    // _opts.created = xx; // this is set to now_ms, not sure if that's correct .. I guess that is should have be created max a minute ago
+
+    // TODO:
+    // * [ ] use the HTTP resolver that's built-in
+    // * [ ] verify the presentation
+    // * [ ] use/extract the did doc VC to update the stored document
+    // * [ ] update proof parameters for the new update challenge
+    // * [ ] verify that everything works
+
+    // presentation.verify(Some(_opts), resolver);
+
+    Ok(Json(proof_parameters))
 }
 
 /// Deletes a DID Document if the identity is authorized to perform this operation.
@@ -301,7 +362,7 @@ fn rocket() -> _ {
     rocket::build()
         .manage(Config::new(
             get_env("EXTERNAL_HOSTNAME", "localhost"),
-            get_env("EXTERNAL_PORT", "8080"),
+            get_env("EXTERNAL_PORT", "8000"),
             get_env("EXTERNAL_PATH", "/"),
             PathBuf::from(&get_env(
                 "DID_STORE",
@@ -314,17 +375,17 @@ fn rocket() -> _ {
         .mount(
             "/",
             routes![
+                create,
+                delete,
+                get,
                 get_proof_parameters,
                 get_proof_parameters_root,
                 get_proof_parameters_wellknown,
                 get_proof_parameters_wellknown_root,
-                get,
                 get_root,
                 get_wellknown,
                 get_wellknown_root,
-                create,
                 update,
-                delete
             ],
         )
 }
