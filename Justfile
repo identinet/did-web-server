@@ -8,7 +8,7 @@ help:
 
 # Run and watch application for development purposes
 dev:
-    EXTERNAL_PORT=8080 cargo watch -w src -x run
+    ROCKET_PORT=7999 cargo watch -w src -x run
 
 # Run universal-resolver and did-web-resolver with web-id-server in docker
 dev-compose:

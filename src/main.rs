@@ -2,8 +2,8 @@
 //
 // * [ ] implement authentication when posting documents via JWT?
 // * [ ] implement authentication when putting documents via Verifiable Presentations
-// * [ ] compatibility with the did:web API .. not sure if there's much imposed: https://w3c-ccg.github.io/did-method-web/
-// * [ ] compatibility with the universal registrar API?
+// * [x] compatibility with the did:web API .. not sure if there's much imposed: https://w3c-ccg.github.io/did-method-web/
+// * [x] compatibility with the universal registrar API?
 // * [x] return content type application/did+json for get requests
 // * [x] support .well-known/did.json documents
 // * [x] support subpaths for storing DIDs
@@ -30,6 +30,7 @@ use crate::util::{get_env, log};
 use rocket::http::ContentType;
 use rocket::serde::json::Json;
 use ssi::did::Document;
+pub use ssi::did_resolve::HTTPDIDResolver;
 use ssi::vc::{LinkedDataProofOptions, Presentation};
 use std::fs;
 use std::io::prelude::*;
@@ -239,24 +240,27 @@ fn create(
 ///
 /// * Prevent replay attacks
 /// * implement .well-known support
-#[put("/v1/web/<id>/did.json", data = "<presentation>")]
-fn update(
+#[put("/v1/web/<id..>", data = "<presentation>")]
+async fn update(
     config: &rocket::State<Config>,
     id: PathBuf,
     presentation: Json<Presentation>,
 ) -> Result<Json<ProofParameters>, DIDError> {
-    if presentation.validate().is_err() {
-        return Err(DIDError::PresentationInvalid(
-            "Presentation invalid, proof missing".to_string(),
-        ));
-    }
+    println!("validate");
+    // if presentation.validate().is_err() {
+    //     return Err(DIDError::PresentationInvalid(
+    //         "Presentation invalid, proof missing".to_string(),
+    //     ));
+    // }
 
     // retrieve proof parameters required to verify the correctness of the presentation
+    println!("doc");
     let doc = retrieve_document(config, id)?;
     let proof_parameters = ProofParameters::new(config, &doc)?;
 
     // verify that at least one proof refers to the controller of this DID; other proofs are
     // ignored for this case
+    println!("authentication_methods_in_document");
     let authentication_methods_in_document: Vec<String> = doc
         .verification_method
         .map(|verification_methods| {
@@ -308,15 +312,26 @@ fn update(
     // _opts.created = xx; // this is set to now_ms, not sure if that's correct .. I guess that is should have be created max a minute ago
 
     // TODO:
-    // * [ ] use the HTTP resolver that's built-in
-    // * [ ] verify the presentation
+    // * [x] use the HTTP resolver that's built-in
+    // * [i] verify the presentation
     // * [ ] use/extract the did doc VC to update the stored document
     // * [ ] update proof parameters for the new update challenge
     // * [ ] verify that everything works
 
-    // presentation.verify(Some(_opts), resolver);
+    let resolver = HTTPDIDResolver::new(&config.did_resolver);
+    println!("resolver {}", &config.did_resolver);
 
-    Ok(Json(proof_parameters))
+    let result = presentation.verify(Some(_opts), &resolver).await;
+    println!("checks {}", result.checks.len());
+    println!("warn {}", result.warnings.len());
+    println!("errors {}", result.errors.len());
+    if result.errors.is_empty() {
+        Ok(Json(proof_parameters))
+    } else {
+        Err(DIDError::PresentationInvalid(
+            "Presentation invalid, verification failed".to_string(),
+        ))
+    }
 }
 
 /// Deletes a DID Document if the identity is authorized to perform this operation.
@@ -361,7 +376,10 @@ fn delete(config: &rocket::State<Config>, id: PathBuf) -> Result<Json<String>, D
 fn rocket() -> _ {
     rocket::build()
         .manage(Config::new(
-            get_env("EXTERNAL_HOSTNAME", "localhost"),
+            get_env(
+                "EXTERNAL_HOSTNAME",
+                "web-did-server", // "localhost"
+            ),
             get_env("EXTERNAL_PORT", "8000"),
             get_env("EXTERNAL_PATH", "/"),
             PathBuf::from(&get_env(
@@ -371,6 +389,11 @@ fn rocket() -> _ {
                     .map(|val| val.join("did_store").to_str().unwrap_or(".").to_string())
                     .unwrap_or_else(|_| ".".to_string()),
             )),
+            get_env(
+                "DID_RESOLVER_OVERRIDE",
+                "http://localhost:8080/1.0/identifiers/",
+                // "http://uni-resolver-web:8080/1.0/identifiers/",
+            ),
         ))
         .mount(
             "/",

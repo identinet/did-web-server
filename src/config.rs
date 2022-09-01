@@ -12,15 +12,23 @@ pub struct Config {
     pub port: String,
     pub did_method_path: String,
     pub didstore: PathBuf,
+    pub did_resolver: String,
 }
 
 impl Config {
-    pub fn new(hostname: String, port: String, path: String, didstore: PathBuf) -> Config {
+    pub fn new(
+        hostname: String,
+        port: String,
+        path: String,
+        didstore: PathBuf,
+        did_resolver: String,
+    ) -> Config {
         Config {
             hostname,
             port,
             did_method_path: path,
             didstore,
+            did_resolver,
         }
     }
 }
