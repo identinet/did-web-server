@@ -19,8 +19,8 @@ RUN just build
 # https://distroless.dev
 FROM distroless.dev/alpine-base as release
 
-# COPY --from=build /build/target/release/web-id-server /web-id-server
-COPY --from=build /build/target/debug/web-id-server /web-id-server
+# COPY --from=build /build/target/release/did-web-server /did-web-server
+COPY --from=build /build/target/debug/did-web-server /did-web-server
 
 # Rocket configuration settings: https://rocket.rs/v0.5-rc/guide/configuration/
 ENV ROCKET_PORT="8000"
@@ -31,4 +31,4 @@ ENV ROCKET_IDENT=false
 
 EXPOSE 8080
 
-ENTRYPOINT ["/web-id-server"]
+ENTRYPOINT ["/did-web-server"]

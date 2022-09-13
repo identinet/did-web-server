@@ -1,6 +1,6 @@
-# web-id Server
+# did-web Server
 
-The web-id Server provides an HTTP server for managing DID Documents for the
+The did-web server provides an HTTP server for managing DID Documents for the
 [did:web method](https://w3c-ccg.github.io/did-method-web/). did:web is a simple
 DID method that relies on DNS and HTTP servers to provide DID Documents that
 represent a self-sovereign identities. Unlike many other DID methods, did:web
@@ -57,7 +57,7 @@ SHOW_LEGEND()
 - Set the [environment variables](#configuration) and start the service, e.g.:
 
 ```sh
-EXTERNAL_HOSTNAME=example.com EXTERNAL_PORT=3000 EXTERNAL_PATH=/dids DID_STORE=/tmp/did_store ./web-id-server
+EXTERNAL_HOSTNAME=example.com EXTERNAL_PORT=3000 EXTERNAL_PATH=/dids DID_STORE=/tmp/did_store ./did-web-server
 ```
 
 ## Configuration
@@ -79,7 +79,7 @@ Set the following environment variables according to the requirements:
 
 ### Start Server
 
-`./web-id-server`
+`./did-web-server`
 
 ### Create DID
 

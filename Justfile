@@ -10,7 +10,7 @@ help:
 dev:
     ROCKET_PORT=8000 cargo watch -w src -x run
 
-# Run universal-resolver and did-web-resolver with web-id-server in docker
+# Run universal-resolver and did-web-resolver with did-web-server in docker
 dev-compose:
     docker-compose up
 
@@ -31,7 +31,7 @@ build:
 
 # Docker build
 docker-build:
-    docker build -t web-id-server:latest -t web-id-server:$(taplo get .package.version < Cargo.toml) .
+    docker build -t did-web-server:latest -t did-web-server:$(taplo get .package.version < Cargo.toml) .
 
 # Test application
 test tests='':
