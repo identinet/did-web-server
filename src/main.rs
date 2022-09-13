@@ -33,7 +33,7 @@ use ssi::did::Document;
 pub use ssi::did_resolve::HTTPDIDResolver;
 use ssi::vc::{CredentialOrJWT, LinkedDataProofOptions, Presentation};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[macro_use]
 extern crate rocket;
@@ -43,7 +43,7 @@ extern crate rocket;
 /// - `config` Global Rocket configuration
 /// - `id` - requested id, e.g. `alice`
 /// - returns Result<Document, DIDError>
-fn retrieve_document(config: &rocket::State<Config>, id: &PathBuf) -> Result<Document, DIDError> {
+fn retrieve_document(config: &rocket::State<Config>, id: &Path) -> Result<Document, DIDError> {
     get_filename_from_id(&config.didstore, id)
         // .map(|f| {
         //     f.to_str().map(log("path"));
@@ -87,7 +87,7 @@ fn get_proof_parameters(
         .map(Json)
 }
 
-#[allow(clippy::wrong_self_convention)]
+#[allow(clippy::unused_unit)]
 #[get("/<id..>?proofParameters")]
 fn get_proof_parameters_root(
     config: &rocket::State<Config>,
@@ -96,7 +96,7 @@ fn get_proof_parameters_root(
     get_proof_parameters(config, id)
 }
 
-#[allow(clippy::wrong_self_convention)]
+#[allow(clippy::unused_unit)]
 #[get("/v1/web/.well-known/did.json?proofParameters")]
 fn get_proof_parameters_wellknown(
     config: &rocket::State<Config>,
@@ -104,7 +104,7 @@ fn get_proof_parameters_wellknown(
     get_proof_parameters(config, PathBuf::from("/.well-known/did.json"))
 }
 
-#[allow(clippy::wrong_self_convention)]
+#[allow(clippy::unused_unit)]
 #[get("/.well-known/did.json?proofParameters")]
 fn get_proof_parameters_wellknown_root(
     config: &rocket::State<Config>,
@@ -228,10 +228,9 @@ async fn update(
             verification_methods
                 .iter()
                 .map(|verification_method| verification_method.get_id(&proof_parameters.did))
-                .map(|x| x)
                 .collect::<Vec<String>>()
         })
-        .unwrap_or_else(|| Vec::new());
+        .unwrap_or_else(Vec::new);
 
     // next, walk through the proof sections and ensure that a least one refers to an ID in the
     // authentication section of the DID Document
@@ -249,7 +248,7 @@ async fn update(
                     .as_ref()
                     .and_then(|verification_method| {
                         // if verification_method.starts_with(&proof_parameters.did) {
-                        if authentication_methods_in_document.contains(&verification_method) {
+                        if authentication_methods_in_document.contains(verification_method) {
                             println!("proof found {}", verification_method);
                             Some(verification_method)
                         } else {
@@ -269,17 +268,16 @@ async fn update(
 
     println!(
         "proof parameters, challenge: {}",
-        proof_parameters.challenge.to_string()
+        proof_parameters.challenge
     );
-    println!(
-        "proof parameters, domain: {}",
-        proof_parameters.domain.to_string()
-    );
-    let mut _opts = LinkedDataProofOptions::default();
-    _opts.challenge = Some(proof_parameters.challenge.to_string());
-    _opts.domain = Some(proof_parameters.domain.to_string());
-    _opts.proof_purpose = Some(ssi::vc::ProofPurpose::Authentication);
-    // _opts.created = xx; // this is set to now_ms, not sure if that's correct .. I guess that is should have be created max a minute ago
+    println!("proof parameters, domain: {}", proof_parameters.domain);
+    let mut _opts = LinkedDataProofOptions {
+        challenge: Some(proof_parameters.challenge.to_string()),
+        domain: Some(proof_parameters.domain.to_string()),
+        proof_purpose: Some(ssi::vc::ProofPurpose::Authentication),
+        // created: xx; // this is set to now_ms, not sure if that's correct .. I guess that is should have be created max a minute ago
+        ..Default::default()
+    };
 
     let resolver = HTTPDIDResolver::new(&config.did_resolver);
 
@@ -297,75 +295,67 @@ async fn update(
         ));
     }
 
-    let mut _opts = LinkedDataProofOptions::default();
-    _opts.proof_purpose = Some(ssi::vc::ProofPurpose::AssertionMethod);
+    let mut _opts = LinkedDataProofOptions {
+        proof_purpose: Some(ssi::vc::ProofPurpose::AssertionMethod),
+        ..Default::default()
+    };
     // - [ ] find the credential that was issued by the DID itself .. or the controlling DID?
     // - [ ] ensure that the DID is the subject of the DID Document
 
     // ensure there's A valid did document in the credentials
-    let diddoc_in_vc = presentation
-        .verifiable_credential
-        .as_ref()
-        .map(|vcs| {
-            println!("evaluating");
-            let res = vcs
-                .into_iter()
-                .map(|credential| match credential {
-                    CredentialOrJWT::Credential(c) => {
-                        println!("credential");
-                        c.credential_subject
-                            .clone()
-                            .into_iter()
-                            .fold(None, |acc, o| {
-                                println!("default? {:?}", acc);
-                                // - [ ] wie stelle ich den Typ eines DidDocs fest? as fehlt irgendwie in der DID Doc definition
-                                // - [x] und prüfen, ob die ID die eigene ID ist
-                                if acc.is_none()
-                                    && o.id
-                                        .as_ref()
-                                        .and_then(|id| {
-                                            println!("default id? {:?}", id.to_string());
-                                            if id.to_string() == proof_parameters.did {
-                                                Some(true)
-                                            } else {
-                                                None
-                                            }
-                                        })
-                                        .is_some()
-                                {
-                                    println!(
-                                        "credential has been issued for DID {}",
-                                        proof_parameters.did
-                                    );
-                                    // TODO: ensure that document is a DID Doc
-                                    Some(o)
+    let diddoc_in_vc = presentation.verifiable_credential.as_ref().and_then(|vcs| {
+        println!("evaluating");
+        vcs.into_iter()
+            .map(|credential| match credential {
+                CredentialOrJWT::Credential(c) => {
+                    println!("credential");
+                    c.credential_subject
+                        .clone()
+                        .into_iter()
+                        .fold(None, |acc, o| {
+                            println!("default? {:?}", acc);
+                            // - [ ] wie stelle ich den Typ eines DidDocs fest? as fehlt irgendwie in der DID Doc definition
+                            // - [x] und prüfen, ob die ID die eigene ID ist
+                            let id_equals_proof_parameter_did = o.id.as_ref().and_then(|id| {
+                                println!("default id? {:?}", id.to_string());
+                                if id.to_string() == proof_parameters.did {
+                                    Some(true)
                                 } else {
-                                    println!("default");
-                                    acc
+                                    None
                                 }
-                            })
-                    }
-                    CredentialOrJWT::JWT(_) => {
-                        println!("credential jwt");
-                        // ignore JWT credentials
-                        None
-                    }
-                })
-                .fold(None, |acc, o| {
-                    if acc.is_none() {
-                        if o.is_some() {
-                            println!("found some");
-                            o
-                        } else {
-                            acc
-                        }
+                            });
+                            if acc.is_none() && id_equals_proof_parameter_did.is_some() {
+                                println!(
+                                    "credential has been issued for DID {}",
+                                    proof_parameters.did
+                                );
+                                // TODO: ensure that document is a DID Doc
+                                Some(o)
+                            } else {
+                                println!("default");
+                                acc
+                            }
+                        })
+                }
+                CredentialOrJWT::JWT(_) => {
+                    println!("credential jwt");
+                    // ignore JWT credentials
+                    None
+                }
+            })
+            .fold(None, |acc, o| {
+                if acc.is_none() {
+                    if o.is_some() {
+                        println!("found some");
+                        o
                     } else {
                         acc
                     }
-                });
-            return res;
-        })
-        .flatten();
+                } else {
+                    acc
+                }
+            })
+    });
 
     match diddoc_in_vc
         .as_ref()

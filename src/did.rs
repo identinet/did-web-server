@@ -29,10 +29,10 @@ impl ProofParameters {
         serde_json::to_string(doc)
             .map_err(|e| DIDError::ContentConversion(e.to_string()))
             .map(|s| ProofParameters {
+                did: doc.id.to_string(),
                 challenge: digest(s),
                 domain: config.hostname.to_string(),
                 proof_purpose: ProofPurpose::Authentication,
-                did: doc.id.to_string(),
             })
     }
 }
