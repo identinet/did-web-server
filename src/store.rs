@@ -1,4 +1,85 @@
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
+
+use ssi::did::Document;
+
+use crate::{config::Config, error::DIDError};
+
+/// Creates a DID Document
+///
+/// - `config` - Global configuration.
+/// - `id` - id part of the did:web method as specified in https://w3c-ccg.github.io/did-method-web/
+/// - `doc` - DID Document.
+/// - returns The stored document or an error
+pub fn create_diddoc(
+    config: &rocket::State<Config>,
+    id: PathBuf,
+    doc: &Document,
+) -> Result<usize, DIDError> {
+    store_diddoc(config, id, doc, |filename| {
+        if filename.exists() {
+            // Err(DIDError::DIDExists(format!(
+            //     "DID already exists: {}",
+            //     computed_did
+            // )))
+            Err(DIDError::DIDExists("DID already exists".to_string()))
+        } else {
+            Ok(filename)
+        }
+    })
+}
+
+/// Updates a DID Document
+///
+/// - `config` - Global configuration.
+/// - `id` - id part of the did:web method as specified in https://w3c-ccg.github.io/did-method-web/
+/// - `doc` - DID Document.
+/// - returns The stored document or an error
+pub fn update_diddoc(
+    config: &rocket::State<Config>,
+    id: PathBuf,
+    doc: &Document,
+) -> Result<usize, DIDError> {
+    store_diddoc(config, id, doc, |filename| Ok(filename))
+}
+
+/// Persisently stores DID Document
+///
+/// - `config` - Global configuration.
+/// - `id` - id part of the did:web method as specified in https://w3c-ccg.github.io/did-method-web/
+/// - `doc` - DID Document.
+/// - `contraints_op` - Call contraints_op with the computed file name. contraints_op returns Ok if the update / creation can continue.
+/// - returns size of bytes written or an error
+fn store_diddoc<F: FnOnce(&PathBuf) -> Result<&PathBuf, DIDError>>(
+    config: &rocket::State<Config>,
+    id: PathBuf,
+    doc: &Document,
+    contraints_op: F,
+) -> Result<usize, DIDError> {
+    get_filename_from_id(&config.didstore, &id)
+        .map_err(|e| DIDError::NoFileName(e.to_string()))
+        .and_then(|filename| match contraints_op(&filename) {
+            Ok(_) => Ok(filename),
+            Err(e) => Err(e),
+        })
+        // Store DID doc in file
+        .and_then(|filename| {
+            // TODO: externalize into a separate function store_did_doc
+            std::fs::File::create(filename)
+                .map_err(|e| DIDError::NoFileWrite(e.to_string()))
+                .and_then(|mut f| {
+                    // rocket::serde::json::to_string(&doc)
+                    // ah, ich muss da direkt das document hineinstecken, denn das ist serializable ..
+                    // wie kommen an das document?
+                    serde_json::to_string(&doc)
+                        .map_err(|e| DIDError::ContentConversion(e.to_string()))
+                        .and_then(|s| {
+                            f.write(s.as_bytes())
+                                .map_err(|e| DIDError::NoFileWrite(e.to_string()))
+                        })
+                })
+        })
+}
 
 /// Computes the absolute path to a file with json extension in a base
 /// direcotory and an ID.

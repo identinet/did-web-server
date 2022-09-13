@@ -64,15 +64,16 @@ EXTERNAL_HOSTNAME=example.com EXTERNAL_PORT=3000 EXTERNAL_PATH=/dids DID_STORE=/
 
 Set the following environment variables according to the requirements:
 
-| **Environment Variable Name** | **Description**                                                             | **Required** | **Default**                                            | **Example**                                     |
-| ----------------------------- | --------------------------------------------------------------------------- | ------------ | ------------------------------------------------------ | ----------------------------------------------- |
-| `EXTERNAL_HOSTNAME`           | External DNS domain name that the server can be reached at                  | yes          | `localhost`                                            | `example.com`                                   |
-| `EXTERNAL_PORT`               | External port that the server can be reached at                             | no           | `443` if `$HOSTNAME != "localhost"`, otherwise `$PORT` | `3000`                                          |
-| `EXTERNAL_PATH`               | External path that the DIDs shall be served at                              | yes          | `/`                                                    | `/dids`                                         |
-| `DID_STORE`                   | Path to the directory that holds the JSON DID files                         | yes          | `$PWD/did_store`                                       | `/usr/web-id/did_store`                         |
-| `DID_RESOLVER_OVERRIDE`       | DID HTTP Resolver compatible with https://w3c-ccg.github.io/did-resolution/ | yes          | `$PWD/did_store`                                       | `http://uni-resolver-web:8080/1.0/identifiers/` |
-
-<!-- | not yet implemented `PORT`    | Port that the service operates on                          | yes          | `8080`                                                 | `80`                    | -->
+| **Environment Variable Name** | **Description**                                                                                                     | **Required** | **Default**                                            | **Example**                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------ | ------------------------------------------------------ | ----------------------------------------------- |
+| `EXTERNAL_HOSTNAME`           | External DNS domain name that the server can be reached at                                                          | yes          | `localhost`                                            | `example.com`                                   |
+| `EXTERNAL_PORT`               | External port that the server can be reached at                                                                     | no           | `443` if `$HOSTNAME != "localhost"`, otherwise `$PORT` | `3000`                                          |
+| `EXTERNAL_PATH`               | External path that the DIDs shall be served at                                                                      | yes          | `/`                                                    | `/dids`                                         |
+| `DID_STORE`                   | Path to the directory that holds the JSON DID files                                                                 | yes          | `$PWD/did_store`                                       | `/usr/web-id/did_store`                         |
+| `DID_RESOLVER_OVERRIDE`       | DID HTTP Resolver compatible with https://w3c-ccg.github.io/did-resolution/                                         | yes          | `http://uni-resolver-web:8080/1.0/identifiers/`        | `http://uni-resolver-web:8080/1.0/identifiers/` |
+| `ROCKET_PORT`                 | Port that the service operates at                                                                                   | yes          | `8000`                                                 | `3000`                                          |
+| `ROCKET_TLS`                  | Key and certificate for serving a HTTPS/TLS secured service                                                         | no           |                                                        | `{certs="my.crt", key="private.key"}`           |
+| `ROCKET_XXX`                  | Rocket offers more configuration settings, see https://rocket.rs/v0.5-rc/guide/configuration/#environment-variables | no           |                                                        |                                                 |
 
 ## Usage
 
@@ -95,7 +96,7 @@ Either:
 
 ### Update DID
 
-Start the service:
+Start the resolver services:
 
 `just dev-compose`
 
@@ -114,25 +115,45 @@ Prepare presentation with a DID document credential:
 ```json
 {
   "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://www.w3.org/2018/credentials/examples/v1"
+    "https://www.w3.org/2018/credentials/v1"
   ],
   "id": "uuid:49387f58-c0d9-4b14-a4f4-bc31a021d925",
-  "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+  "type": ["VerifiableCredential"],
   "issuer": "did:web:web-did-server%3A8000:valid",
   "issuanceDate": "2010-01-01T00:00:00Z",
   "credentialSubject": {
-    "id": "did:web:web-did-server%3A8000:valid",
-    "degree": {
-      "type": "BachelorDegree",
-      "name": "Bachelor of Science and Arts"
-    }
+    "@context": { "did": "https://www.w3.org/ns/did/v1#" },
+    "did:id": "did:web:web-did-server%3A8000:valid",
+    "did:verificationMethod": [{
+      "@context": {
+        "sec": "https://w3id.org/security/v2#",
+        "jwk2020": "https://w3c.github.io/vc-jws-2020/contexts/v1#"
+      },
+      "id": "did:web:web-did-server%3A8000:valid#controller",
+      "type": "did:Ed25519VerificationKey2018",
+      "sec:controller": "did:web:web-did-server%3A8000:valid",
+      "jwk2020:publicKeyJwk": {
+        "jwk2020:kty": "OKP",
+        "jwk2020:crv": "Ed25519",
+        "jwk2020:x": "IkMQNWwqe-y6KEpIjP2DOKbxF9cqrhur6o-l4OJ8AwA"
+      }
+    }],
+    "did:authentication": [
+      "did:web:web-did-server%3A8000:valid#controller"
+    ],
+    "did:assertionMethod": [
+      "did:web:web-did-server%3A8000:valid#controller"
+    ],
+    "did:service": [{
+      "id": "did:web:web-did-server%3A8000:valid#linked-domain",
+      "did:serviceEndpoint": "https://bar.example.com"
+    }]
   }
 }
 ```
 
 - Issue/sign credential:
-  `DID_RESOLVER_OVERRIDE=http://localhost:8080/1.0/identifiers/ didkit vc-issue-credential -k key.jwk -p assertionMethod -t Ed25519Signature2020 -v 'did:web:web-did-server%3A8000:valid#controller' < credential.json > credential-signed.json`
+  `DID_RESOLVER_OVERRIDE=http://localhost:8080/1.0/identifiers/ didkit vc-issue-credential -k key.jwk -p assertionMethod -t Ed25519Signature2018 -v 'did:web:web-did-server%3A8000:valid#controller' < credential.json > credential-signed.json`
 - Ensure credential is valid:
   `didkit vc-verify-credential -R http://localhost:8080/1.0/identifiers/ < credential-signed.json`
 - Prepare presentation (attention, the issuer DID must exist already). Create
@@ -145,34 +166,52 @@ Prepare presentation with a DID document credential:
   "type": ["VerifiablePresentation"],
   "holder": "did:web:web-did-server%3A8000:valid",
   "verifiableCredential": {
-    "@context": [
-      "https://www.w3.org/2018/credentials/v1",
-      "https://www.w3.org/2018/credentials/examples/v1"
-    ],
+    "@context": ["https://www.w3.org/2018/credentials/v1"],
     "id": "uuid:49387f58-c0d9-4b14-a4f4-bc31a021d925",
-    "type": ["VerifiableCredential", "UniversityDegreeCredential"],
+    "type": ["VerifiableCredential"],
     "credentialSubject": {
-      "id": "did:web:web-did-server%3A8000:valid",
-      "degree": {
-        "name": "Bachelor of Science and Arts",
-        "type": "BachelorDegree"
-      }
+      "@context": { "did": "https://www.w3.org/ns/did/v1#" },
+      "did:authentication": ["did:web:web-did-server%3A8000:valid#controller"],
+      "did:assertionMethod": ["did:web:web-did-server%3A8000:valid#controller"],
+      "did:service": [
+        {
+          "did:serviceEndpoint": "https://bar.example.com",
+          "id": "did:web:web-did-server%3A8000:valid#linked-domain"
+        }
+      ],
+      "did:id": "did:web:web-did-server%3A8000:valid",
+      "did:verificationMethod": [
+        {
+          "@context": {
+            "jwk2020": "https://w3c.github.io/vc-jws-2020/contexts/v1#",
+            "sec": "https://w3id.org/security/v2#"
+          },
+          "id": "did:web:web-did-server%3A8000:valid#controller",
+          "jwk2020:publicKeyJwk": {
+            "jwk2020:crv": "Ed25519",
+            "jwk2020:kty": "OKP",
+            "jwk2020:x": "IkMQNWwqe-y6KEpIjP2DOKbxF9cqrhur6o-l4OJ8AwA"
+          },
+          "sec:controller": "did:web:web-did-server%3A8000:valid",
+          "type": "did:Ed25519VerificationKey2018"
+        }
+      ]
     },
     "issuer": "did:web:web-did-server%3A8000:valid",
     "issuanceDate": "2010-01-01T00:00:00Z",
     "proof": {
-      "@context": ["https://w3id.org/security/suites/ed25519-2020/v1"],
-      "type": "Ed25519Signature2020",
+      "type": "Ed25519Signature2018",
       "proofPurpose": "assertionMethod",
-      "proofValue": "zhAUMa4qEDofTozhRbA8aaUQvjE1W4DF5b9ZnojpTXAXRaf2SsQHi7hPUkunck4P5GxjqhWtxEuLECcCAJMV7zhB",
       "verificationMethod": "did:web:web-did-server%3A8000:valid#controller",
-      "created": "2022-09-01T15:11:11.548Z"
+      "created": "2022-09-06T06:32:15.494Z",
+      "jws": "eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..OK45cR1bRkNPYrcAU4j5hPzhMNHc04WmC3P54GCm843LH6S9IDWaX6jQ34OJXEVl_uXGovYredqJy1QZWocDBA"
     }
   }
 }
 ```
 
-- Issue/sign presentation with challenge and domain values:
+- Issue/sign presentation with challenge and domain values (attention: replace
+  _challenge_ and _domain_ values!):
   `DID_RESOLVER_OVERRIDE=http://localhost:8080/1.0/identifiers/ didkit vc-issue-presentation -C a2a03e6164c8279d62ec026dd483dc3aff50d3da2bc0f651651477a96ac96e26 -d web-did-server -k key.jwk -p authentication -v 'did:web:web-did-server%3A8000:valid#controller' < presentation.json > presentation-signed.json`
 - Ensure presentation is valid:
   `didkit vc-verify-presentation -R http://localhost:8080/1.0/identifiers/ < presentation-signed.json`

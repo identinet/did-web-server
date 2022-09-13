@@ -1,7 +1,7 @@
 // TODO: Things to consider:
 //
 // * [ ] implement authentication when posting documents via JWT?
-// * [ ] implement authentication when putting documents via Verifiable Presentations
+// * [x] implement authentication when putting documents via Verifiable Presentations
 // * [x] compatibility with the did:web API .. not sure if there's much imposed: https://w3c-ccg.github.io/did-method-web/
 // * [x] compatibility with the universal registrar API?
 // * [x] return content type application/did+json for get requests
@@ -25,15 +25,14 @@ use crate::config::Config;
 use crate::content_types::DIDContentTypes;
 use crate::did::{DIDWeb, ProofParameters};
 use crate::error::DIDError;
-use crate::store::get_filename_from_id;
+use crate::store::{create_diddoc, get_filename_from_id, update_diddoc};
 use crate::util::{get_env, log};
 use rocket::http::ContentType;
 use rocket::serde::json::Json;
 use ssi::did::Document;
 pub use ssi::did_resolve::HTTPDIDResolver;
-use ssi::vc::{LinkedDataProofOptions, Presentation};
+use ssi::vc::{CredentialOrJWT, LinkedDataProofOptions, Presentation};
 use std::fs;
-use std::io::prelude::*;
 use std::path::PathBuf;
 
 #[macro_use]
@@ -44,8 +43,8 @@ extern crate rocket;
 /// - `config` Global Rocket configuration
 /// - `id` - requested id, e.g. `alice`
 /// - returns Result<Document, DIDError>
-fn retrieve_document(config: &rocket::State<Config>, id: PathBuf) -> Result<Document, DIDError> {
-    get_filename_from_id(&config.didstore, &id)
+fn retrieve_document(config: &rocket::State<Config>, id: &PathBuf) -> Result<Document, DIDError> {
+    get_filename_from_id(&config.didstore, id)
         // .map(|f| {
         //     f.to_str().map(log("path"));
         //     f
@@ -82,7 +81,7 @@ fn get_proof_parameters(
     config: &rocket::State<Config>,
     id: PathBuf,
 ) -> Result<Json<ProofParameters>, DIDError> {
-    retrieve_document(config, id)
+    retrieve_document(config, &id)
         .and_then(|ref d: Document| ProofParameters::new(config, d))
         .map_err(log("get, got error:"))
         .map(Json)
@@ -125,7 +124,7 @@ fn get(
 ) -> (ContentType, Result<Json<Document>, DIDError>) {
     // TODO: verify that the DID in the doc is equal to the DID that has been requested - bail out otherwise
     // TODO: maybe return json_api for errors?
-    let result = retrieve_document(config, id)
+    let result = retrieve_document(config, &id)
         // .and_then(|ref d: Document| {
         //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
         // })
@@ -198,37 +197,9 @@ fn create(
         )));
     }
     let document = doc.into_inner();
-    get_filename_from_id(&config.didstore, &id)
-        .map_err(|e| DIDError::NoFileName(e.to_string()))
-        .and_then(|filename| {
-            if filename.exists() {
-                Err(DIDError::DIDExists(format!(
-                    "DID already exists: {}",
-                    computed_did
-                )))
-            } else {
-                Ok(filename)
-            }
-        })
-        // Store DID doc in file
-        .and_then(|filename| {
-            // TODO: externalize into a separate function store_did_doc
-            std::fs::File::create(filename)
-                .map_err(|e| DIDError::NoFileWrite(e.to_string()))
-                .and_then(|mut f| {
-                    // rocket::serde::json::to_string(&doc)
-                    // ah, ich muss da direkt das document hineinstecken, denn das ist serializable ..
-                    // wie kommen an das document?
-                    serde_json::to_string(&document)
-                        .map_err(|e| DIDError::ContentConversion(e.to_string()))
-                        .and_then(|s| {
-                            f.write(s.as_bytes())
-                                .map_err(|e| DIDError::NoFileWrite(e.to_string()))
-                        })
-                })
-        })
-        .map_err(log("post, got error:"))
+    create_diddoc(config, id, &document)
         .and_then(|_| ProofParameters::new(config, &document))
+        .map_err(log("post, got error:"))
         .map(Json)
 }
 
@@ -238,7 +209,6 @@ fn create(
 ///
 /// # TODO
 ///
-/// * Prevent replay attacks
 /// * implement .well-known support
 #[put("/v1/web/<id..>", data = "<presentation>")]
 async fn update(
@@ -246,21 +216,12 @@ async fn update(
     id: PathBuf,
     presentation: Json<Presentation>,
 ) -> Result<Json<ProofParameters>, DIDError> {
-    println!("validate");
-    // if presentation.validate().is_err() {
-    //     return Err(DIDError::PresentationInvalid(
-    //         "Presentation invalid, proof missing".to_string(),
-    //     ));
-    // }
-
     // retrieve proof parameters required to verify the correctness of the presentation
-    println!("doc");
-    let doc = retrieve_document(config, id)?;
+    let doc = retrieve_document(config, &id)?;
     let proof_parameters = ProofParameters::new(config, &doc)?;
 
     // verify that at least one proof refers to the controller of this DID; other proofs are
     // ignored for this case
-    println!("authentication_methods_in_document");
     let authentication_methods_in_document: Vec<String> = doc
         .verification_method
         .map(|verification_methods| {
@@ -271,6 +232,7 @@ async fn update(
                 .collect::<Vec<String>>()
         })
         .unwrap_or_else(|| Vec::new());
+
     // next, walk through the proof sections and ensure that a least one refers to an ID in the
     // authentication section of the DID Document
     // TODO: use ssi::did_resolve::get_verification_methods(did, verification_relationship, resolver) instead?
@@ -305,32 +267,119 @@ async fn update(
             }
         })?;
 
+    println!(
+        "proof parameters, challenge: {}",
+        proof_parameters.challenge.to_string()
+    );
+    println!(
+        "proof parameters, domain: {}",
+        proof_parameters.domain.to_string()
+    );
     let mut _opts = LinkedDataProofOptions::default();
     _opts.challenge = Some(proof_parameters.challenge.to_string());
     _opts.domain = Some(proof_parameters.domain.to_string());
     _opts.proof_purpose = Some(ssi::vc::ProofPurpose::Authentication);
     // _opts.created = xx; // this is set to now_ms, not sure if that's correct .. I guess that is should have be created max a minute ago
 
-    // TODO:
-    // * [x] use the HTTP resolver that's built-in
-    // * [i] verify the presentation
-    // * [ ] use/extract the did doc VC to update the stored document
-    // * [ ] update proof parameters for the new update challenge
-    // * [ ] verify that everything works
-
     let resolver = HTTPDIDResolver::new(&config.did_resolver);
-    println!("resolver {}", &config.did_resolver);
 
+    // TODO: test if all the containing credentials are also fully verified
+    // - [x] ensure that signatures are correct
+    // - [-] are the options also applied to every single credential or do they need to be reapplied?
     let result = presentation.verify(Some(_opts), &resolver).await;
     println!("checks {}", result.checks.len());
     println!("warn {}", result.warnings.len());
     println!("errors {}", result.errors.len());
-    if result.errors.is_empty() {
-        Ok(Json(proof_parameters))
-    } else {
-        Err(DIDError::PresentationInvalid(
+
+    if !result.errors.is_empty() {
+        return Err(DIDError::PresentationInvalid(
             "Presentation invalid, verification failed".to_string(),
-        ))
+        ));
+    }
+
+    let mut _opts = LinkedDataProofOptions::default();
+    _opts.proof_purpose = Some(ssi::vc::ProofPurpose::AssertionMethod);
+    // - [ ] find the credential that was issued by the DID itself .. or the controlling DID?
+    // - [ ] ensure that the DID is the subject of the DID Document
+
+    // ensure there's A valid did document in the credentials
+    let diddoc_in_vc = presentation
+        .verifiable_credential
+        .as_ref()
+        .map(|vcs| {
+            println!("evaluating");
+            let res = vcs
+                .into_iter()
+                .map(|credential| match credential {
+                    CredentialOrJWT::Credential(c) => {
+                        println!("credential");
+                        c.credential_subject
+                            .clone()
+                            .into_iter()
+                            .fold(None, |acc, o| {
+                                println!("default? {:?}", acc);
+                                // - [ ] wie stelle ich den Typ eines DidDocs fest? as fehlt irgendwie in der DID Doc definition
+                                // - [x] und prüfen, ob die ID die eigene ID ist
+                                if acc.is_none()
+                                    && o.id
+                                        .as_ref()
+                                        .and_then(|id| {
+                                            println!("default id? {:?}", id.to_string());
+                                            if id.to_string() == proof_parameters.did {
+                                                Some(true)
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                        .is_some()
+                                {
+                                    println!(
+                                        "credential has been issued for DID {}",
+                                        proof_parameters.did
+                                    );
+                                    // TODO: ensure that document is a DID Doc
+                                    Some(o)
+                                } else {
+                                    println!("default");
+                                    acc
+                                }
+                            })
+                    }
+                    CredentialOrJWT::JWT(_) => {
+                        println!("credential jwt");
+                        // ignore JWT credentials
+                        None
+                    }
+                })
+                .fold(None, |acc, o| {
+                    if acc.is_none() {
+                        if o.is_some() {
+                            println!("found some");
+                            o
+                        } else {
+                            acc
+                        }
+                    } else {
+                        acc
+                    }
+                });
+            return res;
+        })
+        .flatten();
+
+    match diddoc_in_vc
+        .as_ref()
+        .and_then(|doc| serde_json::to_string(doc).ok())
+        // .map(log("json"))
+        .and_then(|s| serde_json::from_str::<Document>(&s).ok())
+    {
+        Some(document) => update_diddoc(config, id, &document)
+            .and_then(|_| ProofParameters::new(config, &document))
+            .map_err(log("post, got error:"))
+            .map(Json),
+        None => Err(DIDError::PresentationInvalid(
+            "Presentation invalid, DID Doc invalid".to_string(),
+        )),
     }
 }
 
