@@ -18,11 +18,10 @@ pub fn create_diddoc(
 ) -> Result<usize, DIDError> {
     store_diddoc(config, id, doc, |filename| {
         if filename.exists() {
-            // Err(DIDError::DIDExists(format!(
-            //     "DID already exists: {}",
-            //     computed_did
-            // )))
-            Err(DIDError::DIDExists("DID already exists".to_string()))
+            Err(DIDError::DIDExists(format!(
+                "DID already exists: {}",
+                doc.id
+            )))
         } else {
             Ok(filename)
         }
