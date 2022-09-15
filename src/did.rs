@@ -31,7 +31,7 @@ impl ProofParameters {
             .map(|s| ProofParameters {
                 did: doc.id.to_string(),
                 challenge: digest(s),
-                domain: config.hostname.to_string(),
+                domain: config.external_hostname.to_string(),
                 proof_purpose: ProofPurpose::Authentication,
             })
     }
@@ -161,7 +161,12 @@ impl DIDWeb {
         config: &rocket::State<Config>,
         id: &PathBuf,
     ) -> Result<DIDWeb, DIDError> {
-        DIDWeb::new(&config.hostname, &config.port, &config.did_method_path, id)
+        DIDWeb::new(
+            &config.external_hostname,
+            &config.external_port,
+            &config.did_method_path,
+            id,
+        )
     }
 }
 

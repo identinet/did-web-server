@@ -1,3 +1,4 @@
+use crate::util::get_env;
 use std::path::PathBuf;
 
 /// Global configuration
@@ -8,27 +9,30 @@ use std::path::PathBuf;
 /// * `didstore` - Directory to store the DID Documents at, default: `$PWD/did_store`
 #[derive(Debug)]
 pub struct Config {
-    pub hostname: String,
-    pub port: String,
+    pub external_hostname: String,
+    pub external_port: String,
     pub did_method_path: String,
     pub didstore: PathBuf,
     pub did_resolver: String,
 }
 
-impl Config {
-    pub fn new(
-        hostname: String,
-        port: String,
-        path: String,
-        didstore: PathBuf,
-        did_resolver: String,
-    ) -> Config {
-        Config {
-            hostname,
-            port,
-            did_method_path: path,
-            didstore,
-            did_resolver,
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            external_hostname: get_env("EXTERNAL_HOSTNAME", "localhost"),
+            external_port: get_env("EXTERNAL_PORT", "8000"),
+            did_method_path: get_env("EXTERNAL_PATH", "/"),
+            didstore: PathBuf::from(&get_env(
+                "DID_STORE",
+                // by default store all files in $PWD/did_store/
+                &std::env::current_dir()
+                    .map(|val| val.join("did_store").to_str().unwrap_or(".").to_string())
+                    .unwrap_or_else(|_| ".".to_string()),
+            )),
+            did_resolver: get_env(
+                "DID_RESOLVER_OVERRIDE",
+                "http://localhost:8080/1.0/identifiers/",
+            ),
         }
     }
 }

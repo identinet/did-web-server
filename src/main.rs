@@ -26,11 +26,11 @@ use crate::content_types::DIDContentTypes;
 use crate::did::{DIDWeb, ProofParameters};
 use crate::error::DIDError;
 use crate::store::{create_diddoc, get_filename_from_id, update_diddoc};
-use crate::util::{get_env, log};
+use crate::util::log;
 use rocket::http::ContentType;
 use rocket::serde::json::Json;
 use ssi::did::Document;
-pub use ssi::did_resolve::HTTPDIDResolver;
+use ssi::did_resolve::HTTPDIDResolver;
 use ssi::vc::{CredentialOrJWT, LinkedDataProofOptions, Presentation};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -413,41 +413,20 @@ fn delete(config: &rocket::State<Config>, id: PathBuf) -> Result<Json<String>, D
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build()
-        .manage(Config::new(
-            get_env(
-                "EXTERNAL_HOSTNAME",
-                "web-did-server", // "localhost"
-            ),
-            get_env("EXTERNAL_PORT", "8000"),
-            get_env("EXTERNAL_PATH", "/"),
-            PathBuf::from(&get_env(
-                "DID_STORE",
-                // by default store all files in $PWD/did_store/
-                &std::env::current_dir()
-                    .map(|val| val.join("did_store").to_str().unwrap_or(".").to_string())
-                    .unwrap_or_else(|_| ".".to_string()),
-            )),
-            get_env(
-                "DID_RESOLVER_OVERRIDE",
-                "http://localhost:8080/1.0/identifiers/",
-                // "http://uni-resolver-web:8080/1.0/identifiers/",
-            ),
-        ))
-        .mount(
-            "/",
-            routes![
-                create,
-                delete,
-                get,
-                get_proof_parameters,
-                get_proof_parameters_root,
-                get_proof_parameters_wellknown,
-                get_proof_parameters_wellknown_root,
-                get_root,
-                get_wellknown,
-                get_wellknown_root,
-                update,
-            ],
-        )
+    rocket::build().manage(Config::default()).mount(
+        "/",
+        routes![
+            create,
+            delete,
+            get,
+            get_proof_parameters,
+            get_proof_parameters_root,
+            get_proof_parameters_wellknown,
+            get_proof_parameters_wellknown_root,
+            get_root,
+            get_wellknown,
+            get_wellknown_root,
+            update,
+        ],
+    )
 }
