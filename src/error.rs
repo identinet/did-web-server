@@ -23,6 +23,8 @@ pub enum DIDError {
     DIDPortNotAllowed(String),
     #[response(status = 404)] // Bad Request
     PresentationInvalid(String),
+    #[response(status = 500)] // InternalServerError
+    UnknownBackend(String),
 }
 
 impl std::error::Error for DIDError {}
@@ -40,6 +42,7 @@ impl fmt::Display for DIDError {
             DIDError::DIDNotFound(e) => write!(f, "{}", e),
             DIDError::DIDPortNotAllowed(e) => write!(f, "{}", e),
             DIDError::PresentationInvalid(e) => write!(f, "{}", e),
+            DIDError::UnknownBackend(e) => write!(f, "{}", e),
         }
     }
 }

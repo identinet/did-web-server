@@ -11,12 +11,12 @@ on the DID.
 
 ## API
 
-| **Functionality**     | **Method** | **Path**                                     | **Return Codes**                                                                   |
-| --------------------- | ---------- | -------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Retrieve DID document | GET        | `/<id>/did.json`<br> `/v1/web/<id>/did.json` | `200` OK<br> `400` Bad Request<br> `404` Not Found<br> `500` Internal Server Error |
-| Create DID document   | POST       | `/v1/web/<id>/did.json`                      | `200`<br> `400`                                                                    |
-| Update DID document   | PUT        | `/v1/web/<id>/did.json`                      | `200`<br> `400`                                                                    |
-| Delete DID document   | DELETE     | `/v1/web/<id>/did.json`                      | `200`<br> `400`                                                                    |
+| **Functionality**     | **Method** | **Path**                                        | **Return Codes**                                                                   |
+| --------------------- | ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Retrieve DID document | GET        | `/<id>/did.json` or<br> `/v1/web/<id>/did.json` | `200` OK<br> `400` Bad Request<br> `404` Not Found<br> `500` Internal Server Error |
+| Create DID document   | POST       | `/v1/web/<id>/did.json`                         | `200`<br> `400`                                                                    |
+| Update DID document   | PUT        | `/v1/web/<id>/did.json`                         | `200`<br> `400`                                                                    |
+| Delete DID document   | DELETE     | `/v1/web/<id>/did.json`                         | `200`<br> `400`                                                                    |
 
 ## Technology Stack
 
@@ -57,23 +57,25 @@ SHOW_LEGEND()
 - Set the [environment variables](#configuration) and start the service, e.g.:
 
 ```sh
-EXTERNAL_HOSTNAME=example.com EXTERNAL_PORT=3000 EXTERNAL_PATH=/dids DID_STORE=/tmp/did_store ./did-web-server
+EXTERNAL_HOSTNAME=example.com EXTERNAL_PORT=3000 EXTERNAL_PATH=/dids DID_SERVER_BACKEND=file DID_SERVER_BACKEND_FILE_STORE=/tmp/did_store ./did-web-server
 ```
 
 ## Configuration
 
 Set the following environment variables according to the requirements:
 
-| **Environment Variable Name** | **Description**                                                                                                     | **Required** | **Default**                                            | **Example**                                     |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------ | ------------------------------------------------------ | ----------------------------------------------- |
-| `EXTERNAL_HOSTNAME`           | External DNS domain name that the server can be reached at                                                          | yes          | `localhost`                                            | `example.com`                                   |
-| `EXTERNAL_PORT`               | External port that the server can be reached at                                                                     | no           | `443` if `$HOSTNAME != "localhost"`, otherwise `$PORT` | `3000`                                          |
-| `EXTERNAL_PATH`               | External path that the DIDs shall be served at                                                                      | yes          | `/`                                                    | `/dids`                                         |
-| `DID_STORE`                   | Path to the directory that holds the JSON DID files                                                                 | yes          | `$PWD/did_store`                                       | `/usr/web-id/did_store`                         |
-| `DID_RESOLVER_OVERRIDE`       | DID HTTP Resolver compatible with https://w3c-ccg.github.io/did-resolution/                                         | yes          | `http://uni-resolver-web:8080/1.0/identifiers/`        | `http://uni-resolver-web:8080/1.0/identifiers/` |
-| `ROCKET_PORT`                 | Port that the service operates at                                                                                   | yes          | `8000`                                                 | `3000`                                          |
-| `ROCKET_TLS`                  | Key and certificate for serving a HTTPS/TLS secured service                                                         | no           |                                                        | `{certs="my.crt", key="private.key"}`           |
-| `ROCKET_XXX`                  | Rocket offers more configuration settings, see https://rocket.rs/v0.5-rc/guide/configuration/#environment-variables | no           |                                                        |                                                 |
+| **Environment Variable Name**   | **Description**                                                                                                                                   | **Required** | **Default**                                                                                                                                    | **Example**                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `DID_SERVER_EXTERNAL_HOSTNAME`  | External DNS domain name that the server can be reached at                                                                                        | no           | `localhost`                                                                                                                                    | `example.com`                                   |
+| `DID_SERVER_EXTERNAL_PORT`      | External port that the server can be reached at                                                                                                   | no           | `$DID_SERVER_PORT` if `$HOSTNAME == "localhost"`, otherwise `443` as required by the [specifiction](https://w3c-ccg.github.io/did-method-web/) | `3000`                                          |
+| `DID_SERVER_EXTERNAL_PATH`      | External path that the DIDs shall be served at                                                                                                    | no           | `/`                                                                                                                                            | `/dids`                                         |
+| `DID_SERVER_BACKEND`            | Storage backend, currently `mem` and `file` are implemented                                                                                       | no           | `mem`                                                                                                                                          | `file`                                          |
+| `DID_SERVER_BACKEND_FILE_STORE` | Path to the directory that holds the JSON DID files                                                                                               | no           | `$PWD/did_store`                                                                                                                               | `/usr/web-id/did_store`                         |
+| `DID_SERVER_RESOLVER_OVERRIDE`  | DID HTTP Resolver compatible with [https://w3c-ccg.github.io/did-resolution/]()                                                                   | no           | `http://uni-resolver-web:8080/1.0/identifiers/`                                                                                                | `http://uni-resolver-web:8080/1.0/identifiers/` |
+| `DID_SERVER_ADDRESS`            | Address that the service listens at                                                                                                               | no           | `127.0.0.1`                                                                                                                                    | `0.0.0.0`                                       |
+| `DID_SERVER_PORT`               | Port that the service operates at                                                                                                                 | no           | `8000`                                                                                                                                         | `3000`                                          |
+| `DID_SERVER_TLS`                | Key and certificate for serving a HTTPS/TLS secured service                                                                                       | no           |                                                                                                                                                | `{certs="my.crt", key="private.key"}`           |
+| `DID_SERVER_<more>`             | Rocket offers more configuration settings, see [https://rocket.rs/v0.5-rc/guide/configuration/#environment-variables]() - prefix is `DID_SERVER_` | no           |                                                                                                                                                |                                                 |
 
 ## Usage
 

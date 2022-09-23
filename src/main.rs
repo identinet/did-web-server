@@ -1,18 +1,3 @@
-// TODO: Things to consider:
-//
-// * [ ] implement authentication when posting documents via JWT?
-// * [x] implement authentication when putting documents via Verifiable Presentations
-// * [x] compatibility with the did:web API .. not sure if there's much imposed: https://w3c-ccg.github.io/did-method-web/
-// * [x] compatibility with the universal registrar API?
-// * [x] return content type application/did+json for get requests
-// * [x] support .well-known/did.json documents
-// * [x] support subpaths for storing DIDs
-// * [x] ensure that the web-did-resolver test suite passes: https://github.com/decentralized-identity/web-did-resolver/blob/master/src/__tests__/resolver.test.ts
-// * [ ] rethink the API of the service, maybe reserve the admin operations under a specific API endpoint while keeping the user-focused operations at the root level so that the interaction directly happens as intended .. but maybe also the admin operations should happen there
-// * [ ] support additional storage mechanims other than the file system
-// * [ ] maybe add support for a history of documents, including a history of operations and authentications that were used for audit purposes
-// * [ ] think about document integrity verification as proposed here: https://w3c-ccg.github.io/did-method-web/#did-document-integrity-verification
-
 mod config;
 mod content_types;
 mod did;
@@ -25,50 +10,18 @@ use crate::config::Config;
 use crate::content_types::DIDContentTypes;
 use crate::did::{DIDWeb, ProofParameters};
 use crate::error::DIDError;
-use crate::store::{create_diddoc, get_filename_from_id, update_diddoc};
 use crate::util::log;
+use rocket::figment::providers::{Env, Serialized};
+use rocket::figment::{Figment, Profile};
 use rocket::http::ContentType;
 use rocket::serde::json::Json;
 use ssi::did::Document;
 use ssi::did_resolve::HTTPDIDResolver;
 use ssi::vc::{CredentialOrJWT, LinkedDataProofOptions, Presentation};
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[macro_use]
 extern crate rocket;
-
-/// Retrieve stored DID Document.
-///
-/// - `config` Global Rocket configuration
-/// - `id` - requested id, e.g. `alice`
-/// - returns Result<Document, DIDError>
-fn retrieve_document(config: &rocket::State<Config>, id: &Path) -> Result<Document, DIDError> {
-    get_filename_from_id(&config.didstore, id)
-        // .map(|f| {
-        //     f.to_str().map(log("path"));
-        //     f
-        // })
-        .map_err(|e| DIDError::DIDNotFound(e.to_string()))
-        // TODO: use let doc = match Document::from_json(include_str!("../tests/did-example-foo.json")) {
-        .and_then(|filename| {
-            if filename.exists() {
-                Ok(filename)
-            } else {
-                Err(DIDError::DIDNotFound("DID not found".to_string()))
-            }
-        })
-        // .map(|f| {
-        //     f.to_str().map(log("path"));
-        //     f
-        // })
-        .and_then(|filename| fs::read(filename).map_err(|e| DIDError::NoFileRead(e.to_string())))
-        .and_then(|b| String::from_utf8(b).map_err(|e| DIDError::ContentConversion(e.to_string())))
-        .and_then(|ref s| {
-            serde_json::from_str::<Document>(s)
-                .map_err(|e| DIDError::ContentConversion(e.to_string()))
-        })
-}
 
 /// Retrieve DID document proof parameters.
 ///
@@ -81,8 +34,10 @@ fn get_proof_parameters(
     config: &rocket::State<Config>,
     id: PathBuf,
 ) -> Result<Json<ProofParameters>, DIDError> {
-    retrieve_document(config, &id)
-        .and_then(|ref d: Document| ProofParameters::new(config, d))
+    config
+        .store
+        .get(&id)
+        .and_then(|ref doc| ProofParameters::new(config, doc))
         .map_err(log("get, got error:"))
         .map(Json)
 }
@@ -124,7 +79,9 @@ fn get(
 ) -> (ContentType, Result<Json<Document>, DIDError>) {
     // TODO: verify that the DID in the doc is equal to the DID that has been requested - bail out otherwise
     // TODO: maybe return json_api for errors?
-    let result = retrieve_document(config, &id)
+    let result = config
+        .store
+        .get(&id)
         // .and_then(|ref d: Document| {
         //     serde_json::to_string(d).map_err(|e| MyErrors::ConversionError(e.to_string()))1. [x] identinet: Work on did:web based file hosting service - get the service going with the integration of the SSI library
         // })
@@ -197,8 +154,10 @@ fn create(
         )));
     }
     let document = doc.into_inner();
-    create_diddoc(config, id, &document)
-        .and_then(|_| ProofParameters::new(config, &document))
+    config
+        .store
+        .create(&id, document)
+        .and_then(|doc| ProofParameters::new(config, &doc))
         .map_err(log("post, got error:"))
         .map(Json)
 }
@@ -217,13 +176,14 @@ async fn update(
     presentation: Json<Presentation>,
 ) -> Result<Json<ProofParameters>, DIDError> {
     // retrieve proof parameters required to verify the correctness of the presentation
-    let doc = retrieve_document(config, &id)?;
+    let doc = config.store.get(&id)?;
     let proof_parameters = ProofParameters::new(config, &doc)?;
 
     // verify that at least one proof refers to the controller of this DID; other proofs are
     // ignored for this case
     let authentication_methods_in_document: Vec<String> = doc
         .verification_method
+        .as_ref()
         .map(|verification_methods| {
             verification_methods
                 .iter()
@@ -363,8 +323,10 @@ async fn update(
         // .map(log("json"))
         .and_then(|s| serde_json::from_str::<Document>(&s).ok())
     {
-        Some(document) => update_diddoc(config, id, &document)
-            .and_then(|_| ProofParameters::new(config, &document))
+        Some(document) => config
+            .store
+            .update(&id, document) // TODO: confinue here to fix the update methode .. how to do that?
+            .and_then(|doc| ProofParameters::new(config, &doc))
             .map_err(log("post, got error:"))
             .map(Json),
         None => Err(DIDError::PresentationInvalid(
@@ -388,24 +350,9 @@ fn delete(config: &rocket::State<Config>, id: PathBuf) -> Result<Json<String>, D
         Ok(did) => did,
         Err(e) => return Err(e),
     };
-    get_filename_from_id(&config.didstore, &id)
-        .map_err(|e| DIDError::NoFileName(e.to_string()))
-        .and_then(|filename| {
-            if filename.exists() {
-                println!("filename exists");
-                Ok(filename)
-            } else {
-                println!("filename doesnt exists");
-                Err(DIDError::DIDNotFound(format!(
-                    "DID doesn't exist: {}",
-                    computed_did
-                )))
-            }
-        })
-        // Delete file that stores DID doc
-        .and_then(|filename| {
-            std::fs::remove_file(filename).map_err(|e| DIDError::NoFileWrite(e.to_string()))
-        })
+    config
+        .store
+        .remove(&id)
         .map_err(log("delete, got error:"))
         // Return the DID
         .map(|_| Json(computed_did.to_string()))
@@ -413,7 +360,12 @@ fn delete(config: &rocket::State<Config>, id: PathBuf) -> Result<Json<String>, D
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().manage(Config::default()).mount(
+    let figment = Figment::from(rocket::Config::default())
+        .merge(Serialized::defaults(rocket::Config::default()))
+        // .merge(Toml::file("Didwebserver.toml").nested())
+        .merge(Env::prefixed("DID_SERVER_").global())
+        .select(Profile::from_env_or("DID_SERVER__PROFILE", "default"));
+    rocket::custom(figment).manage(Config::default()).mount(
         "/",
         routes![
             create,
