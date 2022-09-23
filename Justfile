@@ -8,7 +8,7 @@ help:
 
 # Run and watch application for development purposes
 dev:
-    DID_SERVER_PORT=8000 DID_SERVER_BACKEND=file cargo watch -w src -x run
+    RUSTC_WRAPPER="$(which sccache)" DID_SERVER_PORT=8000 DID_SERVER_BACKEND=file cargo watch -w src -x run
 
 # Run universal-resolver and did-web-resolver with did-web-server in docker
 dev-compose:
@@ -27,7 +27,7 @@ dev-check:
 # build: test
 build:
     # cargo build --release
-    cargo build
+    RUSTC_WRAPPER="$(which sccache)" cargo build
 
 # Docker build
 docker-build:
@@ -43,7 +43,11 @@ dev-test tests='':
 
 # Lint code
 lint:
-    cargo clippy
+    cargo clippy -- -D warnings
+
+# Lint code and fix issues
+lint-fix:
+    cargo clippy --fix --allow-staged
 
 # Generate and open documentation
 docs:
