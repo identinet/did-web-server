@@ -1,9 +1,12 @@
 # Tasks
 
-- [ ] implement authentication when posting documents via JWT?
-- [ ] use built-in resolver by default
+- [ ] implement authentication when posting documents via JWT or DID docs?
 - [ ] add integration tests
 - [ ] add unit tests
+- [ ] Require the presentation to be not older than XX min
+- [ ] DID Documents also come with a proof .. could this be leveraged?
+  - think about document integrity verification as proposed here:
+    https://w3c-ccg.github.io/did-method-web/#did-document-integrity-verification
 - [ ] rethink the API of the service, maybe reserve the admin operations under a
       specific API endpoint while keeping the user-focused operations at the
       root level so that the interaction directly happens as intended .. but
@@ -11,11 +14,12 @@
 - [ ] support additional storage mechanims other than the file system
 - [ ] maybe add support for a history of documents, including a history of
       operations and authentications that were used for audit purposes
-- [ ] think about document integrity verification as proposed here:
-      https://w3c-ccg.github.io/did-method-web/#did-document-integrity-verification
+- [ ] Think about multi-tenant support - one server for multiple domains .. is
+      that even a good idea?
 
 # Done
 
+- [x] add built-in resolver
 - [x] implement memory backend
 - [x] implement authentication when putting documents via Verifiable
       Presentations

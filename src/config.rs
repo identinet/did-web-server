@@ -1,4 +1,7 @@
+use ssi::did_resolve::HTTPDIDResolver;
+
 use crate::error::DIDError;
+use crate::resolver::ResolverOptions;
 use crate::store::file::FileStore;
 use crate::store::{mem::MemStore, DIDWebStore};
 use crate::util::get_env;
@@ -14,7 +17,7 @@ pub struct Config {
     pub external_port: String,
     pub did_method_path: String,
     pub store: Box<dyn DIDWebStore + Sync + Send>,
-    pub did_resolver: String,
+    pub reslover_options: ResolverOptions,
 }
 
 impl Default for Config {
@@ -23,10 +26,14 @@ impl Default for Config {
             external_hostname: get_env("DID_SERVER_EXTERNAL_HOSTNAME", "localhost"),
             external_port: get_env("DID_SERVER_EXTERNAL_PORT", "8000"),
             did_method_path: get_env("DID_SERVER_EXTERNAL_PATH", "/"),
-            did_resolver: get_env(
-                "DID_SERVER_RESOLVER_OVERRIDE",
-                "http://localhost:8080/1.0/identifiers/",
-            ),
+            reslover_options: ResolverOptions {
+                did_resolver: std::env::var("DID_SERVER_RESOLVER")
+                    .ok()
+                    .map(|ref url| HTTPDIDResolver::new(url)),
+                did_resolver_override: std::env::var("DID_SERVER_RESOLVER_OVERRIDE")
+                    .ok()
+                    .map(|ref url| HTTPDIDResolver::new(url)),
+            },
             store: Ok(get_env("DID_SERVER_BACKEND", "mem"))
                 .and_then(
                     |backend| -> Result<Box<dyn DIDWebStore + Sync + Send>, DIDError> {

@@ -2,6 +2,7 @@ mod config;
 mod content_types;
 mod did;
 mod error;
+mod resolver;
 mod store;
 mod util;
 
@@ -16,7 +17,6 @@ use rocket::figment::{Figment, Profile};
 use rocket::http::ContentType;
 use rocket::serde::json::Json;
 use ssi::did::Document;
-use ssi::did_resolve::HTTPDIDResolver;
 use ssi::vc::{CredentialOrJWT, LinkedDataProofOptions, Presentation};
 use std::path::PathBuf;
 
@@ -239,7 +239,7 @@ async fn update(
         ..Default::default()
     };
 
-    let resolver = HTTPDIDResolver::new(&config.did_resolver);
+    let resolver = config.reslover_options.get_resolver();
 
     // TODO: test if all the containing credentials are also fully verified
     // - [x] ensure that signatures are correct
