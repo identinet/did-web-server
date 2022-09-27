@@ -207,7 +207,6 @@ async fn update(
                     .verification_method
                     .as_ref()
                     .and_then(|verification_method| {
-                        // if verification_method.starts_with(&proof_parameters.did) {
                         if authentication_methods_in_document.contains(verification_method) {
                             println!("proof found {}", verification_method);
                             Some(verification_method)
@@ -226,6 +225,7 @@ async fn update(
             }
         })?;
 
+    // if there's no valid presentation by the user, see if the owner signed the presentation
     println!(
         "proof parameters, challenge: {}",
         proof_parameters.challenge
@@ -360,12 +360,16 @@ fn delete(config: &rocket::State<Config>, id: PathBuf) -> Result<Json<String>, D
 
 #[launch]
 fn rocket() -> _ {
+    ship(Config::load_env_or_panic(Config::default()))
+}
+
+fn ship(config: Config) -> rocket::Rocket<rocket::Build> {
     let figment = Figment::from(rocket::Config::default())
         .merge(Serialized::defaults(rocket::Config::default()))
         // .merge(Toml::file("Didwebserver.toml").nested())
         .merge(Env::prefixed("DID_SERVER_").global())
-        .select(Profile::from_env_or("DID_SERVER__PROFILE", "default"));
-    rocket::custom(figment).manage(Config::default()).mount(
+        .select(Profile::from_env_or("DID_SERVER_PROFILE", "default"));
+    rocket::custom(figment).manage(config).mount(
         "/",
         routes![
             create,

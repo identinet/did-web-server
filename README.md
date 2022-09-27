@@ -9,20 +9,6 @@ to bring the elements of self-sovereign identity management to did:web by
 allowing the owner of the identity to rotate keys and perform other activities
 on the DID.
 
-## API
-
-| **Functionality**     | **Method** | **Path**                                        | **Return Codes**                                                                   |
-| --------------------- | ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Retrieve DID document | GET        | `/<id>/did.json` or<br> `/v1/web/<id>/did.json` | `200` OK<br> `400` Bad Request<br> `404` Not Found<br> `500` Internal Server Error |
-| Create DID document   | POST       | `/v1/web/<id>/did.json`                         | `200`<br> `400`                                                                    |
-| Update DID document   | PUT        | `/v1/web/<id>/did.json`                         | `200`<br> `400`                                                                    |
-| Delete DID document   | DELETE     | `/v1/web/<id>/did.json`                         | `200`<br> `400`                                                                    |
-
-## Technology Stack
-
-- [Rocket web framework](https://rocket.rs/)
-- [SSI Lib](https://github.com/spruceid/ssi/)
-
 ## Architecture
 
 ```plantuml
@@ -49,40 +35,66 @@ Rel(thirdpartysystem, system, "resolves DIDs", "")
 SHOW_LEGEND()
 ```
 
-## Implementation Instructions
+### API
+
+| **Functionality**     | **Method** | **Path**                                        | **Return Codes**                                                                   |
+| --------------------- | ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Retrieve DID document | GET        | `/<id>/did.json` or<br> `/v1/web/<id>/did.json` | `200` OK<br> `400` Bad Request<br> `404` Not Found<br> `500` Internal Server Error |
+| Create DID document   | POST       | `/v1/web/<id>/did.json`                         | `200`<br> `400`                                                                    |
+| Update DID document   | PUT        | `/v1/web/<id>/did.json`                         | `200`<br> `400`                                                                    |
+| Delete DID document   | DELETE     | `/v1/web/<id>/did.json`                         | `200`<br> `400`                                                                    |
+
+### Technology Stack
+
+- [Rocket web framework](https://rocket.rs/)
+- [SSI Lib](https://github.com/spruceid/ssi/)
 
 ## Installation
 
-- Download binary
-- Set the [environment variables](#configuration) and start the service, e.g.:
-
-```sh
-EXTERNAL_HOSTNAME=example.com EXTERNAL_PORT=3000 EXTERNAL_PATH=/dids DID_SERVER_BACKEND=file DID_SERVER_BACKEND_FILE_STORE=/tmp/did_store ./did-web-server
-```
-
-## Configuration
-
-Set the following environment variables according to the requirements:
-
-| **Environment Variable Name**   | **Description**                                                                                                                                   | **Required** | **Default**                                                                                                                                    | **Example**                                     |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `DID_SERVER_EXTERNAL_HOSTNAME`  | External DNS domain name that the server can be reached at                                                                                        | no           | `localhost`                                                                                                                                    | `example.com`                                   |
-| `DID_SERVER_EXTERNAL_PORT`      | External port that the server can be reached at                                                                                                   | no           | `$DID_SERVER_PORT` if `$HOSTNAME == "localhost"`, otherwise `443` as required by the [specifiction](https://w3c-ccg.github.io/did-method-web/) | `3000`                                          |
-| `DID_SERVER_EXTERNAL_PATH`      | External path that the DIDs shall be served at                                                                                                    | no           | `/`                                                                                                                                            | `/dids`                                         |
-| `DID_SERVER_BACKEND`            | Storage backend, currently `mem` and `file` are implemented                                                                                       | no           | `mem`                                                                                                                                          | `file`                                          |
-| `DID_SERVER_BACKEND_FILE_STORE` | Path to the directory that holds the JSON DID files                                                                                               | no           | `$PWD/did_store`                                                                                                                               | `/usr/web-id/did_store`                         |
-| `DID_SERVER_RESOLVER`           | DID HTTP Resolver compatible with [https://w3c-ccg.github.io/did-resolution/]() that's used after the built-in resovler                           | no           |                                                                                                                                                | `http://uni-resolver-web:8080/1.0/identifiers/` |
-| `DID_SERVER_RESOLVER_OVERRIDE`  | DID HTTP Resolver compatible with [https://w3c-ccg.github.io/did-resolution/]() that's used as the first resolver, before the built-in resolver   | no           |                                                                                                                                                | `http://uni-resolver-web:8080/1.0/identifiers/` |
-| `DID_SERVER_ADDRESS`            | Address that the service listens at                                                                                                               | no           | `127.0.0.1`                                                                                                                                    | `0.0.0.0`                                       |
-| `DID_SERVER_PORT`               | Port that the service operates at                                                                                                                 | no           | `8000`                                                                                                                                         | `3000`                                          |
-| `DID_SERVER_TLS`                | Key and certificate for serving a HTTPS/TLS secured service                                                                                       | no           |                                                                                                                                                | `{certs="my.crt", key="private.key"}`           |
-| `DID_SERVER_<more>`             | Rocket offers more configuration settings, see [https://rocket.rs/v0.5-rc/guide/configuration/#environment-variables]() - prefix is `DID_SERVER_` | no           |                                                                                                                                                |                                                 |
+- Download
+  [did-web-server binary](https://github.com/identinet/did-web-server/releases)
+- or use the
+  [Docker container](https://hub.docker.com/r/identinet/did-web-server) -
+  `dockre pull identinet/did-web-server`
 
 ## Usage
 
 ### Start Server
 
-`./did-web-server`
+2. Create a DID for the server's owner, e.g. a `did:key` DID as shown below
+3. Set other [configuration parameters](#configuration) and start the service,
+   e.g.:
+
+```sh
+mkdir /tmp/did_store
+didkit key generate ed25519 > owner.jwk
+
+DID_SERVER_OWNER="$(didkit key-to-did -k owner.jwk)" \
+DID_SERVER_EXTERNAL_HOSTNAME=example.com \
+DID_SERVER_EXTERNAL_PORT=3000 \
+DID_SERVER_EXTERNAL_PATH=/dids \
+DID_SERVER_BACKEND=file \
+DID_SERVER_BACKEND_FILE_STORE=/tmp/did_store ./did-web-server
+```
+
+### Configuration
+
+Set the following environment variables according to the requirements:
+
+| **Environment Variable Name**   | **Description**                                                                                                                                   | **Required** | **Default**                                                                                                                                    | **Example**                                                |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `DID_SERVER_OWNER`              | DID of the server's owner                                                                                                                         | yes          |                                                                                                                                                | `did:key:z6MkrAvU5DpYtUjpJpohoKyKvWdbrQ1yyZcgM5TodLowsahP` |
+| `DID_SERVER_ADDRESS`            | Address that the service listens at                                                                                                               | no           | `127.0.0.1`                                                                                                                                    | `0.0.0.0`                                                  |
+| `DID_SERVER_BACKEND_FILE_STORE` | Path to the directory that holds the JSON DID files                                                                                               | no           | `$PWD/did_store`                                                                                                                               | `/usr/web-id/did_store`                                    |
+| `DID_SERVER_BACKEND`            | Storage backend, currently `mem` and `file` are implemented                                                                                       | no           | `mem`                                                                                                                                          | `file`                                                     |
+| `DID_SERVER_EXTERNAL_HOSTNAME`  | External DNS domain name that the server can be reached at                                                                                        | no           | `localhost`                                                                                                                                    | `example.com`                                              |
+| `DID_SERVER_EXTERNAL_PATH`      | External path that the DIDs shall be served at                                                                                                    | no           | `/`                                                                                                                                            | `/dids`                                                    |
+| `DID_SERVER_EXTERNAL_PORT`      | External port that the server can be reached at                                                                                                   | no           | `$DID_SERVER_PORT` if `$HOSTNAME == "localhost"`, otherwise `443` as required by the [specifiction](https://w3c-ccg.github.io/did-method-web/) | `3000`                                                     |
+| `DID_SERVER_PORT`               | Port that the service listens at                                                                                                                  | no           | `8000`                                                                                                                                         | `3000`                                                     |
+| `DID_SERVER_RESOLVER_OVERRIDE`  | DID HTTP Resolver compatible with [https://w3c-ccg.github.io/did-resolution/]() that's used as the first resolver, before the built-in resolver   | no           |                                                                                                                                                | `http://uni-resolver-web:8080/1.0/identifiers/`            |
+| `DID_SERVER_RESOLVER`           | DID HTTP Resolver compatible with [https://w3c-ccg.github.io/did-resolution/]() that's used after the built-in resovler                           | no           |                                                                                                                                                | `http://uni-resolver-web:8080/1.0/identifiers/`            |
+| `DID_SERVER_TLS`                | Key and certificate for serving a HTTPS/TLS secured service                                                                                       | no           |                                                                                                                                                | `{certs="my.crt", key="private.key"}`                      |
+| `DID_SERVER_<more>`             | Rocket offers more configuration settings, see [https://rocket.rs/v0.5-rc/guide/configuration/#environment-variables]() - prefix is `DID_SERVER_` | no           |                                                                                                                                                |                                                            |
 
 ### Create DID
 
@@ -220,6 +232,10 @@ Prepare presentation with a DID document credential:
   `didkit vc-verify-presentation -R http://localhost:8080/1.0/identifiers/ < presentation-signed.json`
 - Update DID Document:
   `curl -d @presentation-signed.json -X PUT http://localhost:8000/v1/web/valid/did.json`
+
+### Delete DID
+
+TODO
 
 ## Development
 

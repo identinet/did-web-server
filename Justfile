@@ -6,9 +6,16 @@ set shell := ["bash", "-c"]
 help:
     @just -l
 
+generate-owner-key:
+    test ! -e owner.jwk && didkit key generate ed25519 > owner.jwk
+
 # Run and watch application for development purposes
-dev:
-    RUSTC_WRAPPER="$(which sccache)" DID_SERVER_PORT=8000 DID_SERVER_BACKEND=file cargo watch -w src -x run
+dev: generate-owner-key
+    DID_SERVER_BACKEND=file \
+    DID_SERVER_OWNER="$(didkit key-to-did -k owner.jwk)" \
+    DID_SERVER_PORT=8000 \
+    RUSTC_WRAPPER="$(which sccache)" \
+    cargo watch -w src -x run
 
 # Run universal-resolver and did-web-resolver with did-web-server in docker
 dev-compose:

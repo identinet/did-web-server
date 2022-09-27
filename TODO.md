@@ -1,7 +1,8 @@
 # Tasks
 
+- [i] add integration tests
+- [ ] implement ownership for create, update and delete endpoints
 - [ ] implement authentication when posting documents via JWT or DID docs?
-- [ ] add integration tests
 - [ ] add unit tests
 - [ ] Require the presentation to be not older than XX min
 - [ ] DID Documents also come with a proof .. could this be leveraged?
@@ -16,9 +17,12 @@
       operations and authentications that were used for audit purposes
 - [ ] Think about multi-tenant support - one server for multiple domains .. is
       that even a good idea?
+- [ ] create release of the binary
+- [ ] create release of the binary in a docker container
 
 # Done
 
+- [x] add server ownership via a DID
 - [x] add built-in resolver
 - [x] implement memory backend
 - [x] implement authentication when putting documents via Verifiable

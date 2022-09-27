@@ -8,24 +8,28 @@ use crate::util::get_env;
 
 /// Global configuration
 ///
-/// * `hostname` - Hostname for `did:web:<hostname>`. Set via EXTERNAL_HOSTNAME variable, e.g. `example.com`
-/// * `port` - , e.g. `example.com`
-/// * `path` - Path to the identity `did:web:<domainname>:<path>/<id>. Set via SUBPATH variable, e.g. `users`
-/// * `didstore` - Directory to store the DID Documents at, default: `$PWD/did_store`
+/// * `external_hostname` - Hostname for `did:web:<hostname>`. Set via EXTERNAL_HOSTNAME variable, e.g. `example.com`
+/// * `external_path` - Path to the identity `did:web:<domainname>:<path>/<id>. Set via SUBPATH variable, e.g. `users`
+/// * `external_port` - , e.g. `example.com`
+/// * `owner_did` - DID of the server's owner
+/// * `reslover_options` - Directory to store the DID Documents at, default: `$PWD/did_store`
+/// * `store` - Store for DID Documents
 pub struct Config {
+    pub external_path: String,
     pub external_hostname: String,
     pub external_port: String,
-    pub did_method_path: String,
-    pub store: Box<dyn DIDWebStore + Sync + Send>,
+    pub owner: String,
     pub reslover_options: ResolverOptions,
+    pub store: Box<dyn DIDWebStore + Sync + Send>,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            external_hostname: get_env("DID_SERVER_EXTERNAL_HOSTNAME", "localhost"),
-            external_port: get_env("DID_SERVER_EXTERNAL_PORT", "8000"),
-            did_method_path: get_env("DID_SERVER_EXTERNAL_PATH", "/"),
+impl Config {
+    pub fn load_env_or_panic(config: Config) -> Config {
+        Config {
+            external_hostname: get_env("DID_SERVER_EXTERNAL_HOSTNAME", &config.external_hostname),
+            external_port: get_env("DID_SERVER_EXTERNAL_PORT", &config.external_port),
+            external_path: get_env("DID_SERVER_EXTERNAL_PATH", &config.external_path),
+            owner: std::env::var("DID_SERVER_OWNER").unwrap(),
             reslover_options: ResolverOptions {
                 did_resolver: std::env::var("DID_SERVER_RESOLVER")
                     .ok()
@@ -61,7 +65,22 @@ impl Default for Config {
                         }
                     },
                 )
-                .unwrap(), // WARNING: panic if backend is incorrect
+                .unwrap(),
+        }
+    }
+}
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            external_hostname: "localhost".to_string(),
+            external_port: "8000".to_string(),
+            external_path: "/".to_string(),
+            owner: "_did:in:valid".to_string(),
+            reslover_options: ResolverOptions {
+                did_resolver: None,
+                did_resolver_override: None,
+            },
+            store: Box::new(MemStore::new()),
         }
     }
 }

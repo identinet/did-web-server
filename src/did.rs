@@ -164,7 +164,7 @@ impl DIDWeb {
         DIDWeb::new(
             &config.external_hostname,
             &config.external_port,
-            &config.did_method_path,
+            &config.external_path,
             id,
         )
     }
