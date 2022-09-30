@@ -1,0 +1,34 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/did/v1",
+    "https://w3id.org/security/suites/jws-2020/v1"
+  ],
+  "id": "did:web:localhost%3A8000:valid-did",
+  "verificationMethod": [
+    {
+      "id": "did:web:localhost%3A8000:valid-did#controller",
+      "type": "JsonWebKey2020",
+      "controller": "did:web:localhost%3A8000:valid-did",
+      "publicKeyJwk": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "AZJ8CMWYjqNybPPMEHq_RsRtk-oJPaJmqMOlzzTJrd8"
+      }
+    },
+    {
+      "id": "did:web:localhost%3A8000:valid-did#controller2",
+      "type": "JsonWebKey2020",
+      "controller": "did:web:localhost%3A8000:valid-did",
+      "publicKeyJwk": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "i6v1AdziqHaO5erjSYqScvGxpZXSM4D6RZ68pi9v8M8"
+      }
+    }
+  ],
+  "authentication": [
+    "did:web:localhost%3A8000:valid-did#controller",
+    "did:web:localhost%3A8000:valid-did#controller2"
+  ],
+  "assertionMethod": ["did:web:localhost%3A8000:valid-did#controller"]
+}

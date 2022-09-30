@@ -18,3 +18,8 @@ regex = "1"
 sha256 = "1"
 dashmap = "~5.4.0"
 lazy_static = "1.4.0"
+
+[dev-dependencies]
+async-trait = "0.1"
+either = "1.8.0"
+chrono = "~0.4.22"

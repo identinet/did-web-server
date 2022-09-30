@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// Copyright 2021, Spruce Systems, Inc. All rights reserved.
 // Source: https://github.com/spruceid/didkit/blob/main/cli/src/opts.rs
 
 use did_ethr::DIDEthr;

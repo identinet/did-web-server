@@ -1,5 +1,12 @@
 use std::fmt;
 
+/// Custom response status
+#[derive(Responder)]
+pub enum CustomStatus<T> {
+    #[response(status = 201)] // Created
+    Created(T),
+}
+
 // TODO: change String to &'static str to avoid reallocation of the error on the heap
 #[derive(Debug, Responder)]
 pub enum DIDError {
@@ -21,7 +28,7 @@ pub enum DIDError {
     DIDNotFound(String),
     #[response(status = 400)] // Bad Request
     DIDPortNotAllowed(String),
-    #[response(status = 404)] // Bad Request
+    #[response(status = 400)] // Bad Request
     PresentationInvalid(String),
     #[response(status = 500)] // InternalServerError
     UnknownBackend(String),

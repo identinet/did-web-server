@@ -6,11 +6,10 @@ mod resolver;
 mod store;
 mod util;
 
-// use serde::{Deserialize, Serialize};
 use crate::config::Config;
 use crate::content_types::DIDContentTypes;
 use crate::did::{DIDWeb, ProofParameters};
-use crate::error::DIDError;
+use crate::error::{CustomStatus, DIDError};
 use crate::util::log;
 use rocket::figment::providers::{Env, Serialized};
 use rocket::figment::{Figment, Profile};
@@ -19,6 +18,13 @@ use rocket::serde::json::Json;
 use ssi::did::Document;
 use ssi::vc::{CredentialOrJWT, LinkedDataProofOptions, Presentation};
 use std::path::PathBuf;
+
+#[cfg(test)]
+mod test_resolver;
+#[cfg(test)]
+use crate::test_resolver::DIDWebTestResolver;
+#[cfg(test)]
+use ssi::did_resolve::SeriesResolver;
 
 #[macro_use]
 extern crate rocket;
@@ -79,6 +85,10 @@ fn get(
 ) -> (ContentType, Result<Json<Document>, DIDError>) {
     // TODO: verify that the DID in the doc is equal to the DID that has been requested - bail out otherwise
     // TODO: maybe return json_api for errors?
+    match DIDWeb::did_from_config(config, &id) {
+        Ok(did) => Some(did),
+        Err(_) => None,
+    };
     let result = config
         .store
         .get(&id)
@@ -141,7 +151,7 @@ fn create(
     config: &rocket::State<Config>,
     id: PathBuf,
     doc: Json<Document>,
-) -> Result<Json<ProofParameters>, DIDError> {
+) -> Result<CustomStatus<Json<ProofParameters>>, DIDError> {
     // guard to ensure that the DID is in general manageable
     let computed_did = match DIDWeb::did_from_config(config, &id) {
         Ok(did) => did,
@@ -160,6 +170,7 @@ fn create(
         .and_then(|doc| ProofParameters::new(config, &doc))
         .map_err(log("post, got error:"))
         .map(Json)
+        .map(CustomStatus::Created)
 }
 
 /// Updates a DID Document if the identity is authorized to perform this operation.
@@ -231,7 +242,7 @@ async fn update(
         proof_parameters.challenge
     );
     println!("proof parameters, domain: {}", proof_parameters.domain);
-    let mut _opts = LinkedDataProofOptions {
+    let opts = LinkedDataProofOptions {
         challenge: Some(proof_parameters.challenge.to_string()),
         domain: Some(proof_parameters.domain.to_string()),
         proof_purpose: Some(ssi::vc::ProofPurpose::Authentication),
@@ -240,14 +251,26 @@ async fn update(
     };
 
     let resolver = config.reslover_options.get_resolver();
+    #[cfg(test)]
+    let std_resolvers = resolver;
+    #[cfg(test)]
+    let test_resolver = DIDWebTestResolver {
+        store: Some(&config.store),
+        ..DIDWebTestResolver::default()
+    };
+    #[cfg(test)]
+    let resolver = SeriesResolver {
+        resolvers: vec![&test_resolver, &std_resolvers],
+    };
 
     // TODO: test if all the containing credentials are also fully verified
     // - [x] ensure that signatures are correct
     // - [-] are the options also applied to every single credential or do they need to be reapplied?
-    let result = presentation.verify(Some(_opts), &resolver).await;
+    let result = presentation.verify(Some(opts), &resolver).await;
     println!("checks {}", result.checks.len());
     println!("warn {}", result.warnings.len());
     println!("errors {}", result.errors.len());
+    println!("errors: {}", result.errors.join("; "));
 
     if !result.errors.is_empty() {
         return Err(DIDError::PresentationInvalid(
@@ -255,10 +278,6 @@ async fn update(
         ));
     }
 
-    let mut _opts = LinkedDataProofOptions {
-        proof_purpose: Some(ssi::vc::ProofPurpose::AssertionMethod),
-        ..Default::default()
-    };
     // - [ ] find the credential that was issued by the DID itself .. or the controlling DID?
     // - [ ] ensure that the DID is the subject of the DID Document
 
@@ -363,6 +382,8 @@ fn rocket() -> _ {
     ship(Config::load_env_or_panic(Config::default()))
 }
 
+// Workaround for tests to start with a different configuration not derived from environment
+// variables
 fn ship(config: Config) -> rocket::Rocket<rocket::Build> {
     let figment = Figment::from(rocket::Config::default())
         .merge(Serialized::defaults(rocket::Config::default()))
@@ -385,4 +406,344 @@ fn ship(config: Config) -> rocket::Rocket<rocket::Build> {
             update,
         ],
     )
+}
+
+#[cfg(test)]
+mod test {
+    use super::ship;
+    use crate::config::Config;
+    use crate::did::ProofParameters;
+    use crate::test_resolver::DIDWebTestResolver;
+    use chrono::prelude::*;
+    use lazy_static::lazy_static;
+    use rocket::http::Status;
+    use rocket::local::blocking::Client;
+    use ssi::did::Document;
+    use ssi::jwk::{OctetParams, Params, JWK};
+    use ssi::one_or_many::OneOrMany;
+    use ssi::vc::VCDateTime;
+    use ssi::vc::{Context, Contexts, Credential, LinkedDataProofOptions, Presentation, URI};
+    use std::collections::HashMap;
+    use std::fs;
+    use std::path::PathBuf;
+
+    lazy_static! {
+        static ref OWNER: &'static str = "did:key:z6MksRCeBVzFcsnR4Ao7YurYSJEVxNzUPnBNkXAcQdvwmwLR";
+        static ref NOT_OWNER: &'static str =
+            "did:key:z6MketjFUmQyWfJUjD21peHqsxreL8VCvwnKoCcVKRWqSWCm";
+    }
+
+    fn read_file(filename: &str) -> Result<String, String> {
+        fs::read(PathBuf::from(filename))
+            .map_err(|_| "file access failed".to_string())
+            .and_then(|b| String::from_utf8(b).map_err(|_| "conversion failure".to_string()))
+    }
+
+    #[test]
+    fn integration_get() {
+        let client = Client::tracked(ship(Config {
+            owner: OWNER.to_string(),
+            ..Config::default()
+        }))
+        .expect("valid rocket instance");
+
+        let response = client
+            .get(uri!(super::get(id = PathBuf::from(".well-known/did.json"))))
+            .dispatch();
+        assert_eq!(
+            response.status(),
+            Status::NotFound,
+            "When DID is not in the store, then return 404 - not found."
+        );
+    }
+
+    #[test]
+    fn integration_create() {
+        let client = Client::tracked(ship(Config {
+            owner: OWNER.to_string(),
+            ..Config::default()
+        }))
+        .expect("valid rocket instance");
+
+        // create
+        // ------
+        let filename = "./src/__fixtures__/valid-did.json";
+        let doc = read_file(filename);
+        assert!(
+            doc.is_ok(),
+            "When a fixture is read, then it's returned successfully."
+        );
+        let doc = doc.unwrap();
+        let response = client
+            .post(uri!(super::create(
+                id = PathBuf::from("valid-did/did.json"),
+            )))
+            .body(doc)
+            .dispatch();
+        assert_eq!(
+            response.status(),
+            Status::Created,
+            "When DID is created in store, then return 201 - created."
+        );
+        let res = response.into_json::<ProofParameters>();
+        assert!(
+            res.is_some(),
+            "When DID is created in store, then ProofParameters are returned."
+        );
+        let res = res.unwrap();
+        assert_eq!(
+            res.domain, "localhost",
+            "When DID is created in store, then the proof domain is 'localhost'."
+        );
+
+        // get
+        // ---
+        let filename = "./src/__fixtures__/valid-did.json";
+        let doc = read_file(filename);
+        assert!(
+            doc.is_ok(),
+            "When a fixture is read, then it's returned successfully."
+        );
+        let doc = doc.unwrap();
+        let document = serde_json::from_str::<Document>(&doc).unwrap();
+        let docstring = serde_json::to_string(&document).unwrap();
+        let response = client
+            .get(uri!(super::get(id = PathBuf::from("valid-did/did.json"))))
+            .dispatch();
+        assert_eq!(
+            response.status(),
+            Status::Ok,
+            "When DID exists in the store, then return 200 - ok."
+        );
+        let res = response.into_json::<Document>();
+        assert!(
+            res.is_some(),
+            "When DID exists in the store, then a DID Document is returned."
+        );
+        let res = res.unwrap();
+        let res = serde_json::to_string(&res).unwrap();
+        assert_eq!(
+            res, docstring,
+            "When DID was created in store, then the same document is returned as stored in the document."
+        );
+
+        // double create
+        // -------------
+        let filename = "./src/__fixtures__/valid-did.json";
+        let doc = read_file(filename);
+        assert!(
+            doc.is_ok(),
+            "When a fixture is read, then it's returned successfully."
+        );
+        let doc = doc.unwrap();
+        let response = client
+            .post(uri!(super::create(
+                id = PathBuf::from("valid-did/did.json"),
+            )))
+            .body(doc)
+            .dispatch();
+        assert_eq!(
+            response.status(),
+            Status::BadRequest,
+            "When DID exists in store and is created again, then return 400 - bad request."
+        );
+
+        // create with invalid id
+        // ----------------------
+        let filename = "./src/__fixtures__/invalid-diddoc.json";
+        let doc = read_file(filename);
+        assert!(
+            doc.is_ok(),
+            "When a fixture is read, then it's returned successfully."
+        );
+        let doc = doc.unwrap();
+        let response = client
+            .post(uri!(super::create(
+                id = PathBuf::from("invalid-diddoc/did.json"),
+            )))
+            .body(doc)
+            .dispatch();
+        assert_eq!(
+            response.status(),
+            Status::BadRequest,
+            "When DID doesn't exist in store but the DID doesn't match the expected did, then return 400 - bad request."
+        );
+    }
+
+    #[rocket::async_test]
+    async fn integration_update() {
+        use rocket::local::asynchronous::Client;
+        let config = Config {
+            owner: OWNER.to_string(),
+            ..Config::default()
+        };
+        let client = Client::tracked(ship(config))
+            .await
+            .expect("valid rocket instance");
+
+        // create
+        // ------
+        let filename = "./src/__fixtures__/valid-did.json";
+        let doc = read_file(filename);
+        assert!(
+            doc.is_ok(),
+            "When a fixture is read, then it's returned successfully."
+        );
+        let doc = doc.unwrap();
+        let response = client
+            .post(uri!(super::create(
+                id = PathBuf::from("valid-did/did.json"),
+            )))
+            .body(doc)
+            .dispatch()
+            .await;
+        assert_eq!(
+            response.status(),
+            Status::Created,
+            "When DID is created in store, then return 201 - created."
+        );
+        let proof_parameters = response.into_json::<ProofParameters>().await;
+        assert!(
+            proof_parameters.is_some(),
+            "When DID is created in store, then ProofParameters are returned."
+        );
+        let proof_parameters = proof_parameters.unwrap();
+        assert_eq!(
+            proof_parameters.domain, "localhost",
+            "When DID is created in store, then the proof domain is 'localhost'."
+        );
+        assert_eq!(
+            proof_parameters.challenge, "d992a52400965351e261fdcfa47469cb3e0fa06cc658208c3c95bddf577dc29a",
+            "When DID is created in store, then the challenge is set to a unique but deterministic value."
+        );
+
+        // update
+        // ------
+        let filename = "./src/__fixtures__/valid-did.jwk";
+        let key = read_file(filename);
+        assert!(
+            key.is_ok(),
+            "When a fixture is read, then it's returned successfully."
+        );
+        let key = key.unwrap();
+        let key = JWK::from(Params::OKP(
+            serde_json::from_str::<OctetParams>(&key).unwrap(),
+        ));
+
+        // build a credential from the did document
+        let filename = "./src/__fixtures__/valid-did_update.json";
+        let doc = read_file(filename);
+        assert!(
+            doc.is_ok(),
+            "When a fixture is read, then it's returned successfully."
+        );
+        let doc = doc.unwrap();
+        let mut attributes =
+            serde_json::from_str::<HashMap<String, rocket::serde::json::serde_json::Value>>(&doc)
+                .unwrap();
+        let id = match attributes.remove("id").unwrap() {
+            rocket::serde::json::serde_json::Value::String(id) => Some(id),
+            _ => None,
+        }
+        .unwrap();
+        let mut credential = Credential {
+            context: Contexts::One(Context::URI(URI::String(
+                "https://www.w3.org/2018/credentials/v1".to_string(),
+            ))),
+            id: Some(URI::String("https://example.com/vc/123".to_string())),
+            type_: OneOrMany::One("VerifiableCredential".to_string()),
+            credential_subject: OneOrMany::One(ssi::vc::CredentialSubject {
+                id: Some(URI::String(id.to_string())),
+                property_set: Some(attributes),
+            }),
+            issuer: Some(ssi::vc::Issuer::URI(URI::String(
+                proof_parameters.did.to_owned(),
+            ))),
+            issuance_date: Some(VCDateTime::from(Utc::now())),
+            proof: None,           // added later
+            expiration_date: None, // TODO: test expired credential
+            credential_status: None,
+            terms_of_use: None,
+            evidence: None,
+            credential_schema: None,
+            refresh_service: None,
+            property_set: None,
+        };
+        let resolver = DIDWebTestResolver {
+            client: Some(&client),
+            ..DIDWebTestResolver::default()
+        };
+        let proof = match credential
+            .generate_proof(
+                &key,
+                &LinkedDataProofOptions {
+                    type_: Some("Ed25519Signature2018".to_string()),
+                    proof_purpose: Some(ssi::vc::ProofPurpose::AssertionMethod),
+                    verification_method: Some(URI::String(
+                        "did:web:localhost%3A8000:valid-did#controller".to_string(),
+                    )),
+                    ..LinkedDataProofOptions::default()
+                },
+                &resolver,
+            )
+            .await
+        {
+            Ok(proof) => Ok(proof),
+
+            Err(e) => {
+                eprintln!("error, {}", e);
+                Err(e)
+            }
+        }
+        .unwrap();
+        credential.add_proof(proof);
+        // build a presentation from the credential
+        let mut presentation = Presentation {
+            holder: Some(URI::String(proof_parameters.did.to_owned())), // holder must be present, otherwise the presentation can't be verified
+            verifiable_credential: Some(OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(
+                credential,
+            ))),
+            ..Presentation::default()
+        };
+        let proof = match presentation
+            .generate_proof(
+                &key,
+                &LinkedDataProofOptions {
+                    type_: Some("Ed25519Signature2018".to_string()),
+                    domain: Some(proof_parameters.domain),
+                    challenge: Some(proof_parameters.challenge),
+                    proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+                    verification_method: Some(URI::String(
+                        "did:web:localhost%3A8000:valid-did#controller".to_string(),
+                    )),
+                    ..LinkedDataProofOptions::default()
+                },
+                &resolver,
+            )
+            .await
+        {
+            Ok(proof) => Ok(proof),
+
+            Err(e) => {
+                eprintln!("error, {}", e);
+                Err(e)
+            }
+        }
+        .unwrap();
+        presentation.add_proof(proof);
+        let presentation_string = serde_json::to_string(&presentation).unwrap();
+        // update did doc via presentation
+        let response = client
+            .put(uri!(super::update(
+                id = PathBuf::from("valid-did/did.json"),
+            )))
+            .body(presentation_string)
+            .dispatch()
+            .await;
+        assert_eq!(
+            response.status(),
+            Status::Ok,
+            "When Presentation with updated DID document is sent to store, then the document is updated and 200 - ok is returned."
+        );
+    }
 }

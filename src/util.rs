@@ -1,5 +1,15 @@
 use std::fmt;
+use std::path::Path;
 
+/// Join a path into a String with separator.
+pub fn path_to_str<'a>(path: &Path, sep: &str) -> String {
+    path.iter()
+        .map(|s| s.to_str().unwrap_or(""))
+        .collect::<Vec<&str>>()
+        .join(sep)
+}
+
+/// Retrieve value from an environment variable or if unst return the default value.
 pub fn get_env(varname: &str, default: &str) -> String {
     match std::env::var(varname) {
         Ok(value) => value,

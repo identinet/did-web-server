@@ -1,6 +1,8 @@
 # Tasks
 
 - [i] add integration tests
+  - add .well-known test
+  - test access to ids starting with "."
 - [ ] implement ownership for create, update and delete endpoints
 - [ ] implement authentication when posting documents via JWT or DID docs?
 - [ ] add unit tests
