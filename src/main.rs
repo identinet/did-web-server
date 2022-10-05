@@ -410,33 +410,25 @@ fn ship(config: Config) -> rocket::Rocket<rocket::Build> {
 
 #[cfg(test)]
 mod test {
+    mod utils;
+
     use super::ship;
     use crate::config::Config;
     use crate::did::ProofParameters;
     use crate::test_resolver::DIDWebTestResolver;
-    use chrono::prelude::*;
     use lazy_static::lazy_static;
     use rocket::http::Status;
     use rocket::local::blocking::Client;
     use ssi::did::Document;
     use ssi::jwk::{OctetParams, Params, JWK};
     use ssi::one_or_many::OneOrMany;
-    use ssi::vc::VCDateTime;
-    use ssi::vc::{Context, Contexts, Credential, LinkedDataProofOptions, Presentation, URI};
-    use std::collections::HashMap;
-    use std::fs;
+    use ssi::vc::{LinkedDataProofOptions, URI};
     use std::path::PathBuf;
 
     lazy_static! {
         static ref OWNER: &'static str = "did:key:z6MksRCeBVzFcsnR4Ao7YurYSJEVxNzUPnBNkXAcQdvwmwLR";
         static ref NOT_OWNER: &'static str =
             "did:key:z6MketjFUmQyWfJUjD21peHqsxreL8VCvwnKoCcVKRWqSWCm";
-    }
-
-    fn read_file(filename: &str) -> Result<String, String> {
-        fs::read(PathBuf::from(filename))
-            .map_err(|_| "file access failed".to_string())
-            .and_then(|b| String::from_utf8(b).map_err(|_| "conversion failure".to_string()))
     }
 
     #[test]
@@ -468,7 +460,7 @@ mod test {
         // create
         // ------
         let filename = "./src/__fixtures__/valid-did.json";
-        let doc = read_file(filename);
+        let doc = utils::read_file(filename);
         assert!(
             doc.is_ok(),
             "When a fixture is read, then it's returned successfully."
@@ -499,7 +491,7 @@ mod test {
         // get
         // ---
         let filename = "./src/__fixtures__/valid-did.json";
-        let doc = read_file(filename);
+        let doc = utils::read_file(filename);
         assert!(
             doc.is_ok(),
             "When a fixture is read, then it's returned successfully."
@@ -530,7 +522,7 @@ mod test {
         // double create
         // -------------
         let filename = "./src/__fixtures__/valid-did.json";
-        let doc = read_file(filename);
+        let doc = utils::read_file(filename);
         assert!(
             doc.is_ok(),
             "When a fixture is read, then it's returned successfully."
@@ -551,7 +543,7 @@ mod test {
         // create with invalid id
         // ----------------------
         let filename = "./src/__fixtures__/invalid-diddoc.json";
-        let doc = read_file(filename);
+        let doc = utils::read_file(filename);
         assert!(
             doc.is_ok(),
             "When a fixture is read, then it's returned successfully."
@@ -584,7 +576,7 @@ mod test {
         // create
         // ------
         let filename = "./src/__fixtures__/valid-did.json";
-        let doc = read_file(filename);
+        let doc = utils::read_file(filename);
         assert!(
             doc.is_ok(),
             "When a fixture is read, then it's returned successfully."
@@ -620,7 +612,7 @@ mod test {
         // update
         // ------
         let filename = "./src/__fixtures__/valid-did.jwk";
-        let key = read_file(filename);
+        let key = utils::read_file(filename);
         assert!(
             key.is_ok(),
             "When a fixture is read, then it's returned successfully."
@@ -632,105 +624,44 @@ mod test {
 
         // build a credential from the did document
         let filename = "./src/__fixtures__/valid-did_update.json";
-        let doc = read_file(filename);
-        assert!(
-            doc.is_ok(),
-            "When a fixture is read, then it's returned successfully."
-        );
-        let doc = doc.unwrap();
-        let mut attributes =
-            serde_json::from_str::<HashMap<String, rocket::serde::json::serde_json::Value>>(&doc)
-                .unwrap();
+        let mut attributes = utils::json_file_to_attributes_or_panic(filename);
         let id = match attributes.remove("id").unwrap() {
             rocket::serde::json::serde_json::Value::String(id) => Some(id),
             _ => None,
         }
         .unwrap();
-        let mut credential = Credential {
-            context: Contexts::One(Context::URI(URI::String(
-                "https://www.w3.org/2018/credentials/v1".to_string(),
-            ))),
-            id: Some(URI::String("https://example.com/vc/123".to_string())),
-            type_: OneOrMany::One("VerifiableCredential".to_string()),
-            credential_subject: OneOrMany::One(ssi::vc::CredentialSubject {
-                id: Some(URI::String(id.to_string())),
-                property_set: Some(attributes),
-            }),
-            issuer: Some(ssi::vc::Issuer::URI(URI::String(
-                proof_parameters.did.to_owned(),
-            ))),
-            issuance_date: Some(VCDateTime::from(Utc::now())),
-            proof: None,           // added later
-            expiration_date: None, // TODO: test expired credential
-            credential_status: None,
-            terms_of_use: None,
-            evidence: None,
-            credential_schema: None,
-            refresh_service: None,
-            property_set: None,
-        };
         let resolver = DIDWebTestResolver {
             client: Some(&client),
             ..DIDWebTestResolver::default()
         };
-        let proof = match credential
-            .generate_proof(
-                &key,
-                &LinkedDataProofOptions {
-                    type_: Some("Ed25519Signature2018".to_string()),
-                    proof_purpose: Some(ssi::vc::ProofPurpose::AssertionMethod),
-                    verification_method: Some(URI::String(
-                        "did:web:localhost%3A8000:valid-did#controller".to_string(),
-                    )),
-                    ..LinkedDataProofOptions::default()
-                },
-                &resolver,
-            )
-            .await
-        {
-            Ok(proof) => Ok(proof),
-
-            Err(e) => {
-                eprintln!("error, {}", e);
-                Err(e)
-            }
-        }
-        .unwrap();
-        credential.add_proof(proof);
+        let credential = utils::create_credential_or_panic(
+            &proof_parameters.did,
+            &id,
+            "https://example.com/vc/123",
+            attributes,
+            &resolver,
+            "did:web:localhost%3A8000:valid-did#controller",
+            &key,
+        )
+        .await;
         // build a presentation from the credential
-        let mut presentation = Presentation {
-            holder: Some(URI::String(proof_parameters.did.to_owned())), // holder must be present, otherwise the presentation can't be verified
-            verifiable_credential: Some(OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(
-                credential,
-            ))),
-            ..Presentation::default()
-        };
-        let proof = match presentation
-            .generate_proof(
-                &key,
-                &LinkedDataProofOptions {
-                    type_: Some("Ed25519Signature2018".to_string()),
-                    domain: Some(proof_parameters.domain),
-                    challenge: Some(proof_parameters.challenge),
-                    proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
-                    verification_method: Some(URI::String(
-                        "did:web:localhost%3A8000:valid-did#controller".to_string(),
-                    )),
-                    ..LinkedDataProofOptions::default()
-                },
-                &resolver,
-            )
-            .await
-        {
-            Ok(proof) => Ok(proof),
-
-            Err(e) => {
-                eprintln!("error, {}", e);
-                Err(e)
-            }
-        }
-        .unwrap();
-        presentation.add_proof(proof);
+        let presentation = utils::create_presentation_or_panic(
+            &proof_parameters.did,
+            OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+            &LinkedDataProofOptions {
+                type_: Some("Ed25519Signature2018".to_string()),
+                domain: Some(proof_parameters.domain),
+                challenge: Some(proof_parameters.challenge),
+                proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+                verification_method: Some(URI::String(
+                    "did:web:localhost%3A8000:valid-did#controller".to_string(),
+                )),
+                ..LinkedDataProofOptions::default()
+            },
+            &resolver,
+            &key,
+        )
+        .await;
         let presentation_string = serde_json::to_string(&presentation).unwrap();
         // update did doc via presentation
         let response = client
