@@ -35,6 +35,8 @@ pub async fn create_credential_or_panic(
     id: &str,
     subject_id: &str,
     attributes: HashMap<String, rocket::serde::json::serde_json::Value>,
+    issuance_date: Option<VCDateTime>,
+    expiration_date: Option<VCDateTime>,
     resolver: &DIDWebTestResolver<'_>,
     verification_method: &str,
     key: &ssi::jwk::JWK,
@@ -50,9 +52,9 @@ pub async fn create_credential_or_panic(
             property_set: Some(attributes),
         }),
         issuer: Some(ssi::vc::Issuer::URI(URI::String(issuer.to_string()))),
-        issuance_date: Some(VCDateTime::from(Utc::now())),
-        proof: None,           // added later
-        expiration_date: None, // TODO: test expired credential
+        issuance_date: issuance_date.or_else(|| Some(VCDateTime::from(Utc::now()))),
+        proof: None, // added later
+        expiration_date,
         credential_status: None,
         terms_of_use: None,
         evidence: None,

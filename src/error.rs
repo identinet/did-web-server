@@ -12,13 +12,13 @@ pub enum CustomStatus<T> {
 pub enum DIDError {
     #[response(status = 500)] // InternalServerError
     ContentConversion(String),
-    #[response(status = 399)] // TODO: return a default value instead of an error code, maybe
+    #[response(status = 500)] // TODO: return a default value instead of an error code, maybe
     NoFileRead(String),
     #[response(status = 500)] // InternalServerError
     NoFileWrite(String),
     #[response(status = 400)] // BadRequest
     NoFileName(String),
-    #[response(status = 400)] // BadRequest
+    #[response(status = 403)] // Forbidden
     DIDExists(String),
     #[response(status = 400)] // BadRequest
     IllegalCharacter(String),
@@ -28,7 +28,7 @@ pub enum DIDError {
     DIDNotFound(String),
     #[response(status = 400)] // Bad Request
     DIDPortNotAllowed(String),
-    #[response(status = 400)] // Bad Request
+    #[response(status = 401)] // Unauthorized
     PresentationInvalid(String),
     #[response(status = 500)] // InternalServerError
     UnknownBackend(String),

@@ -6,20 +6,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+chrono = "~0.4.22"
+dashmap = "~5.4.0"
+did-ethr = { version = "0.1", default-features = false }
+did-method-key = { version = "^0.1.2", default-features = false }
+did-web = { version = "^0.1.1", default-features = false }
+did-webkey = { version = "0.1", default-features = false }
+lazy_static = "1.4.0"
+regex = "1"
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-ssi = { version = "0.4.0", features = ["http", "http-did"] }
-did-method-key = { version = "^0.1.2", default-features = false }
-did-ethr = { version = "0.1", default-features = false }
-did-web = { version = "^0.1.1", default-features = false }
-did-webkey = { version = "0.1", default-features = false }
-regex = "1"
 sha256 = "1"
-dashmap = "~5.4.0"
-lazy_static = "1.4.0"
+ssi = { version = "0.4.0", features = ["http", "http-did"] }
 
 [dev-dependencies]
 async-trait = "0.1"
 either = "1.8.0"
-chrono = "~0.4.22"
