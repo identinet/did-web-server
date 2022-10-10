@@ -330,11 +330,7 @@ async fn update(
                     |acc, credential| if acc.is_none() { credential } else { acc },
                 )
         })
-        .ok_or_else(|| {
-            DIDError::PresentationInvalid(
-                "Presentation invalid, no valid DID Doc credential found".to_string(),
-            )
-        })?;
+        .ok_or_else(|| DIDError::DIDDocMissing("No valid DID Doc credential found".to_string()))?;
 
     // ensure that inssuance_date is not in the future
     match &vc.issuance_date {
@@ -397,9 +393,7 @@ async fn update(
             .and_then(|doc| ProofParameters::new(config, &doc))
             .map_err(log("post, got error:"))
             .map(Json),
-        None => Err(DIDError::PresentationInvalid(
-            "Presentation invalid, DID Doc invalid".to_string(),
-        )),
+        None => Err(DIDError::DIDDocMissing("DID Doc invalid".to_string())),
     }
 }
 
@@ -589,6 +583,15 @@ mod test {
             Status::Forbidden,
             "When DID exists in store and is created again, then return 403 - bad request."
         );
+    }
+
+    #[test]
+    fn integration_create_invalid_id() {
+        let client = Client::tracked(ship(Config {
+            owner: OWNER.to_string(),
+            ..Config::default()
+        }))
+        .expect("valid rocket instance");
 
         // create with invalid id
         // ----------------------
@@ -622,6 +625,10 @@ mod test {
         let client = Client::tracked(ship(config))
             .await
             .expect("valid rocket instance");
+        let resolver = DIDWebTestResolver {
+            client: Some(&client),
+            ..DIDWebTestResolver::default()
+        };
 
         // create
         // ------
@@ -680,15 +687,11 @@ mod test {
             _ => None,
         }
         .unwrap();
-        let resolver = DIDWebTestResolver {
-            client: Some(&client),
-            ..DIDWebTestResolver::default()
-        };
         let credential = utils::create_credential_or_panic(
             &proof_parameters.did,
             &id,
             "https://example.com/vc/123",
-            attributes,
+            Some(attributes),
             None,
             None,
             &resolver,
@@ -751,7 +754,7 @@ mod test {
             &proof_parameters.did,
             &id,
             "https://example.com/vc/123",
-            attributes,
+            Some(attributes),
             Some(VCDateTime::from_str("2019-12-31T01:01:00Z").unwrap()),
             Some(VCDateTime::from_str("2020-01-01T01:01:00Z").unwrap()),
             &resolver,
@@ -793,8 +796,54 @@ mod test {
             "When Presentation with expired VC is sent, then 401 - Unauthorized is returned."
         );
 
-        // Test When a valid Presentation without a DIDDoc VC is sent, then 401 - Bad Request is returned.
-        // Test When a valid Presentation with a non-matching subject in the VC/DID Doc is sent, then 401 - Bad Request is returned.
+        // update without DIDDoc VC
+        // ------------------------
+        let credential = utils::create_credential_or_panic(
+            &proof_parameters.did,
+            &id,
+            "https://example.com/vc/123",
+            None,
+            None,
+            None,
+            &resolver,
+            "did:web:localhost%3A8000:valid-did#controller",
+            &key,
+        )
+        .await;
+        // build a presentation from the credential
+        let presentation = utils::create_presentation_or_panic(
+            &proof_parameters.did,
+            OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+            &LinkedDataProofOptions {
+                type_: Some("Ed25519Signature2018".to_string()),
+                domain: Some(proof_parameters.domain.to_string()),
+                challenge: Some(proof_parameters.challenge.to_string()),
+                proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+                verification_method: Some(URI::String(
+                    "did:web:localhost%3A8000:valid-did#controller".to_string(),
+                )),
+                ..LinkedDataProofOptions::default()
+            },
+            &resolver,
+            &key,
+        )
+        .await;
+        let presentation_string = serde_json::to_string(&presentation).unwrap();
+        // update did doc via presentation
+        let response = client
+            .put(uri!(super::update(
+                id = PathBuf::from("valid-did/did.json"),
+            )))
+            .body(presentation_string)
+            .dispatch()
+            .await;
+        assert_eq!(
+            response.status(),
+            Status::BadRequest,
+            "When a valid Presentation without a DIDDoc VC is sent, then 401 - Unauthorized is returned."
+        );
+
+        // Test When a valid Presentation with a non-matching subject in the VC/DID Doc is sent, then 401 - Unauthorized is returned.
         // Test When a valid Presentation and DID Doc is sent but the Presentation holder doesn't match the DID Doc id, then 401 - Bad Request is returned.
         // Test When the owner of the server sends a valid update of a DID doc, then the DID Doc is successfully updated.
         // Test When the owner of the server sends a valid Presentation but the DID Doc id doesn't match the actual DID, then 400 - Bad Request is returned.

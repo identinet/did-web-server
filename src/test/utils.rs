@@ -34,7 +34,7 @@ pub async fn create_credential_or_panic(
     issuer: &str,
     id: &str,
     subject_id: &str,
-    attributes: HashMap<String, rocket::serde::json::serde_json::Value>,
+    attributes: Option<HashMap<String, rocket::serde::json::serde_json::Value>>,
     issuance_date: Option<VCDateTime>,
     expiration_date: Option<VCDateTime>,
     resolver: &DIDWebTestResolver<'_>,
@@ -49,7 +49,7 @@ pub async fn create_credential_or_panic(
         type_: OneOrMany::One("VerifiableCredential".to_string()),
         credential_subject: OneOrMany::One(ssi::vc::CredentialSubject {
             id: Some(URI::String(id.to_string())),
-            property_set: Some(attributes),
+            property_set: attributes,
         }),
         issuer: Some(ssi::vc::Issuer::URI(URI::String(issuer.to_string()))),
         issuance_date: issuance_date.or_else(|| Some(VCDateTime::from(Utc::now()))),
