@@ -678,7 +678,6 @@ mod test {
         let key = JWK::from(Params::OKP(
             serde_json::from_str::<OctetParams>(&key).unwrap(),
         ));
-
         // build a credential from the did document
         let filename = "./src/__fixtures__/valid-did_update.json";
         let mut attributes = utils::json_file_to_attributes_or_panic(filename);
@@ -733,6 +732,7 @@ mod test {
         );
 
         // Test expired DID Doc
+        // --------------------
         // Fetch new proof parameters
         let response = client
             .get(uri!(super::get_proof_parameters(
@@ -741,7 +741,6 @@ mod test {
             .dispatch()
             .await;
         let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
-
         // build a credential from the did document
         let filename = "./src/__fixtures__/valid-did_update.json";
         let mut attributes = utils::json_file_to_attributes_or_panic(filename);
@@ -798,6 +797,15 @@ mod test {
 
         // update without DIDDoc VC
         // ------------------------
+        // Fetch new proof parameters
+        let response = client
+            .get(uri!(super::get_proof_parameters(
+                id = PathBuf::from("valid-did/did.json"),
+            )))
+            .dispatch()
+            .await;
+        let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+        // build a credential from the did document
         let credential = utils::create_credential_or_panic(
             &proof_parameters.did,
             &id,
@@ -843,7 +851,69 @@ mod test {
             "When a valid Presentation without a DIDDoc VC is sent, then 401 - Unauthorized is returned."
         );
 
-        // Test When a valid Presentation with a non-matching subject in the VC/DID Doc is sent, then 401 - Unauthorized is returned.
+        // update with non-matching ID in DID document
+        // -------------------------------------------
+        // Fetch new proof parameters
+        let response = client
+            .get(uri!(super::get_proof_parameters(
+                id = PathBuf::from("valid-did/did.json"),
+            )))
+            .dispatch()
+            .await;
+        let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+        // build a credential from the did document
+        let filename = "./src/__fixtures__/valid-did_update-invalid.json";
+        let mut attributes = utils::json_file_to_attributes_or_panic(filename);
+        let id = match attributes.remove("id").unwrap() {
+            rocket::serde::json::serde_json::Value::String(id) => Some(id),
+            _ => None,
+        }
+        .unwrap();
+        let credential = utils::create_credential_or_panic(
+            &proof_parameters.did,
+            &id,
+            "https://example.com/vc/123",
+            Some(attributes),
+            None,
+            None,
+            &resolver,
+            "did:web:localhost%3A8000:valid-did#controller",
+            &key,
+        )
+        .await;
+        // build a presentation from the credential
+        let presentation = utils::create_presentation_or_panic(
+            &proof_parameters.did,
+            OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+            &LinkedDataProofOptions {
+                type_: Some("Ed25519Signature2018".to_string()),
+                domain: Some(proof_parameters.domain.to_string()),
+                challenge: Some(proof_parameters.challenge.to_string()),
+                proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+                verification_method: Some(URI::String(
+                    "did:web:localhost%3A8000:valid-did#controller".to_string(),
+                )),
+                ..LinkedDataProofOptions::default()
+            },
+            &resolver,
+            &key,
+        )
+        .await;
+        let presentation_string = serde_json::to_string(&presentation).unwrap();
+        // update did doc via presentation
+        let response = client
+            .put(uri!(super::update(
+                id = PathBuf::from("valid-did/did.json"),
+            )))
+            .body(presentation_string)
+            .dispatch()
+            .await;
+        assert_eq!(
+            response.status(),
+            Status::BadRequest,
+            "When a valid Presentation with a non-matching subject in the DID Doc credential is sent, then 400 - Bad Request is returned."
+        );
+
         // Test When a valid Presentation and DID Doc is sent but the Presentation holder doesn't match the DID Doc id, then 401 - Bad Request is returned.
         // Test When the owner of the server sends a valid update of a DID doc, then the DID Doc is successfully updated.
         // Test When the owner of the server sends a valid Presentation but the DID Doc id doesn't match the actual DID, then 400 - Bad Request is returned.
