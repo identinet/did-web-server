@@ -6,11 +6,18 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 help:
     @just -l
 
+# Install dependencies
+install:
+    @echo "Testing depedencies"
+    @# run `npx husky install` to install hooks
+    @test "$(git config core.hooksPath)" = ".husky" || git config core.hooksPath .husky
+    @echo "All depedencies found"
+
 generate-owner-key:
     test ! -e owner.jwk && didkit key generate ed25519 > owner.jwk
 
 # Run and watch application for development purposes
-dev: generate-owner-key
+dev: install generate-owner-key
     DID_SERVER_BACKEND=file \
     DID_SERVER_OWNER="$(didkit key-to-did -k owner.jwk)" \
     DID_SERVER_PORT=8000 \
@@ -18,7 +25,7 @@ dev: generate-owner-key
     cargo watch -w src -x run
 
 # Run universal-resolver and did-web-resolver with did-web-server in docker
-dev-compose:
+dev-compose: install
     docker-compose up
 
 # Fast check to verify that it's still building
@@ -26,13 +33,13 @@ check:
     cargo check
 
 # Fast check to verify that it's still building
-dev-check:
+dev-check: install
     cargo watch -w src -x check
 
 # Build application
 
 # build: test
-build:
+build: install
     # cargo build --release
     RUSTC_WRAPPER="$(which sccache)" cargo build
 
@@ -45,7 +52,7 @@ test tests='':
     cargo test {{ tests }}
 
 # Development test application
-dev-test tests='':
+dev-test tests='': install
     cargo watch -w src -x 'test {{ tests }}'
 
 # Lint code

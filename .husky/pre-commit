@@ -1,0 +1,6 @@
+#!/usr/bin/env -S bash
+
+. "$(dirname "$0")/_/husky.sh"
+set -euo pipefail
+
+just test
