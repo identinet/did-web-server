@@ -12,7 +12,8 @@ on the DID.
 ## Architecture
 
 ```plantuml
-title "web-id Server Context"
+@startuml did-web-server-context
+title "did:web Server Context"
 
 !include <C4/C4_Context.puml>
 !include <tupadr3/font-awesome/server>
@@ -33,6 +34,7 @@ Rel(admin, system, "creates and removes DIDs", "")
 Rel(thirdpartysystem, system, "resolves DIDs", "")
 
 SHOW_LEGEND()
+@enduml
 ```
 
 ### API
@@ -47,7 +49,7 @@ SHOW_LEGEND()
 ### Technology Stack
 
 - [Rocket web framework](https://rocket.rs/)
-- [SSI Lib](https://github.com/spruceid/ssi/)
+- [Spruce SSI Lib](https://github.com/spruceid/ssi/)
 
 ## Installation
 
