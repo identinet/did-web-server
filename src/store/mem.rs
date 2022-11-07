@@ -6,6 +6,7 @@ use ssi::did::Document;
 use crate::error::DIDError;
 
 use super::DIDWebStore;
+use crate::utils::path_to_string;
 
 #[derive(Debug)]
 pub struct MemStore {
@@ -87,14 +88,6 @@ impl DIDWebStore for MemStore {
             .map(|(_, v)| v)
             .ok_or_else(|| DIDError::DIDNotFound("DID not found".to_string()))
     }
-}
-
-fn path_to_string(path: &Path, sep: &str) -> String {
-    path.iter()
-        // how to turn a path into a string?
-        .filter_map(|s| s.to_str())
-        .collect::<Vec<&str>>()
-        .join(sep)
 }
 
 #[cfg(test)]

@@ -16,7 +16,7 @@ install:
 generate-owner-key:
     test ! -e owner.jwk && didkit key generate ed25519 > owner.jwk
 
-# Run and watch application for development purposes
+# Continuously run and build application for development purposes
 dev: install generate-owner-key
     DID_SERVER_BACKEND=file \
     DID_SERVER_OWNER="$(didkit key-to-did -k owner.jwk)" \
@@ -28,19 +28,20 @@ dev: install generate-owner-key
 dev-compose: install
     docker-compose up
 
-# Fast check to verify that it's still building
+# Fast check to verify that the codes still compiles
 check:
-    cargo check
+    cargo check --features=fail-on-warnings
 
-# Fast check to verify that it's still building
+# Continuously verify that the codes still compiles
 dev-check: install
     cargo watch -w src -x check
 
-# Build application
+# Build release version of application
+build: test
+    cargo build --release --features=fail-on-warnings
 
-# build: test
-build: install
-    # cargo build --release
+# Build debug version of application
+dev-build: install
     RUSTC_WRAPPER="$(which sccache)" cargo build
 
 # Docker build
@@ -49,9 +50,9 @@ docker-build:
 
 # Test application
 test tests='':
-    cargo test {{ tests }}
+    cargo test --features=fail-on-warnings {{ tests }}
 
-# Development test application
+# Continuously test application
 dev-test tests='': install
     cargo watch -w src -x 'test {{ tests }}'
 
@@ -75,7 +76,7 @@ update:
 upgrade:
     cargo outdated -wR
 
-# Remove unused dependencies
+# Remove unused dependencies (requires nightly version of compiler)
 clean-udeps:
     cargo udeps
 
@@ -83,7 +84,7 @@ clean-udeps:
 clean-dups:
     cargo tree --duplicate
 
-# Find bload in the executable
+# Find bloat in the executable
 clean-bloat:
     cargo bloat --release --crates
 

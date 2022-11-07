@@ -2,9 +2,9 @@ use std::fmt;
 use std::path::Path;
 
 /// Join a path into a String with separator.
-pub fn path_to_str<'a>(path: &Path, sep: &str) -> String {
+pub fn path_to_string(path: &Path, sep: &str) -> String {
     path.iter()
-        .map(|s| s.to_str().unwrap_or(""))
+        .filter_map(|s| s.to_str())
         .collect::<Vec<&str>>()
         .join(sep)
 }

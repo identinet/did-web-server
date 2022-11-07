@@ -1,16 +1,19 @@
+// Fail build if feature is requsted, see https://www.reddit.com/r/rust/comments/8oz7md/make_cargo_fail_on_warning/
+#![cfg_attr(feature = "fail-on-warnings", deny(warnings))]
+
 mod config;
 mod content_types;
 mod did;
 mod error;
 mod resolver;
 mod store;
-mod util;
+mod utils;
 
 use crate::config::Config;
 use crate::content_types::DIDContentTypes;
 use crate::did::{DIDWeb, ProofParameters};
 use crate::error::{CustomStatus, DIDError};
-use crate::util::log;
+use crate::utils::log;
 use chrono::{DateTime, Utc};
 use rocket::figment::providers::{Env, Serialized};
 use rocket::figment::{Figment, Profile};

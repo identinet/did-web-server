@@ -4,7 +4,7 @@ use crate::error::DIDError;
 use crate::resolver::ResolverOptions;
 use crate::store::file::FileStore;
 use crate::store::{mem::MemStore, DIDWebStore};
-use crate::util::get_env;
+use crate::utils::get_env;
 
 /// Global configuration
 ///
