@@ -8,6 +8,7 @@ use lazy_static::lazy_static;
 use rocket::http::Status;
 use rocket::local::blocking::Client;
 use ssi::did::Document;
+use ssi::did_resolve::SeriesResolver;
 use ssi::jwk::{OctetParams, Params, JWK};
 use ssi::one_or_many::OneOrMany;
 use ssi::vc::{LinkedDataProofOptions, VCDateTime, URI};
@@ -17,6 +18,7 @@ use std::str::FromStr;
 lazy_static! {
     static ref OWNER: &'static str = "did:key:z6MksRCeBVzFcsnR4Ao7YurYSJEVxNzUPnBNkXAcQdvwmwLR";
     static ref NOT_OWNER: &'static str = "did:key:z6MketjFUmQyWfJUjD21peHqsxreL8VCvwnKoCcVKRWqSWCm";
+    static ref NOT_OWNER_VERIFICATION_METHOD: &'static str = "did:key:z6MketjFUmQyWfJUjD21peHqsxreL8VCvwnKoCcVKRWqSWCm#z6MketjFUmQyWfJUjD21peHqsxreL8VCvwnKoCcVKRWqSWCm";
 }
 
 #[test]
@@ -169,11 +171,30 @@ async fn integration_update() {
     let client = Client::tracked(ship(config))
         .await
         .expect("valid rocket instance");
-    let resolver = DIDWebTestResolver {
+
+    let resolver_config = Config {
+        owner: OWNER.to_string(),
+        ..Config::default()
+    };
+    let std_resolvers = resolver_config.reslover_options.get_resolver();
+    let test_resolver = DIDWebTestResolver {
         client: Some(&client),
         ..DIDWebTestResolver::default()
     };
+    let resolver = SeriesResolver {
+        resolvers: vec![&test_resolver, &std_resolvers],
+    };
 
+    let filename = "./src/__fixtures__/not-owner.jwk";
+    let key_not_owner = utils::read_file(filename);
+    assert!(
+        key_not_owner.is_ok(),
+        "When a fixture is read, then it's returned successfully."
+    );
+    let key_not_owner = key_not_owner.unwrap();
+    let key_not_owner = JWK::from(Params::OKP(
+        serde_json::from_str::<OctetParams>(&key_not_owner).unwrap(),
+    ));
     // create
     // ------
     let filename = "./src/__fixtures__/valid-did.json";
@@ -458,7 +479,67 @@ async fn integration_update() {
             "When a valid Presentation with a non-matching subject in the DID Doc credential is sent, then 400 - Bad Request is returned."
         );
 
-    // Test When a valid Presentation and DID Doc is sent but the Presentation holder doesn't match the DID Doc id, then 401 - Bad Request is returned.
-    // Test When the owner of the server sends a valid update of a DID doc, then the DID Doc is successfully updated.
-    // Test When the owner of the server sends a valid Presentation but the DID Doc id doesn't match the actual DID, then 400 - Bad Request is returned.
+    // Attempted update with holder not matching DID Doc ID
+    // -------------------------------------------
+    // Fetch new proof parameters
+    let response = client
+        .get(uri!(super::get_proof_parameters(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .dispatch()
+        .await;
+    let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+    // build a credential from the did document
+    let filename = "./src/__fixtures__/valid-did_update.json";
+    let mut attributes = utils::json_file_to_attributes_or_panic(filename);
+    let id = match attributes.remove("id").unwrap() {
+        rocket::serde::json::serde_json::Value::String(id) => Some(id),
+        _ => None,
+    }
+    .unwrap();
+    let credential = utils::create_credential_or_panic(
+        &proof_parameters.did,
+        &id,
+        "https://example.com/vc/123",
+        Some(attributes),
+        None,
+        None,
+        &resolver,
+        "did:web:localhost%3A8000:valid-did#controller",
+        &key,
+    )
+    .await;
+    // build a presentation from the credential
+    let presentation = utils::create_presentation_or_panic(
+        &NOT_OWNER,
+        OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+        &LinkedDataProofOptions {
+            type_: Some("Ed25519Signature2018".to_string()),
+            domain: Some(proof_parameters.domain.to_string()),
+            challenge: Some(proof_parameters.challenge.to_string()),
+            proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+            verification_method: Some(URI::String(NOT_OWNER_VERIFICATION_METHOD.to_string())),
+            ..LinkedDataProofOptions::default()
+        },
+        &resolver,
+        &key_not_owner,
+    )
+    .await;
+    let presentation_string = serde_json::to_string(&presentation).unwrap();
+    // update did doc via presentation
+    let response = client
+        .put(uri!(super::update(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .body(presentation_string)
+        .dispatch()
+        .await;
+    assert_eq!(
+            response.status(),
+            Status::Unauthorized,
+            "When a valid Presentation and DID Doc is sent but the Presentation holder doesn't match the DID Doc id, then 403 - Unauthorized is returned."
+        );
+
+    // TODO Test When the owner of the server sends a valid update of a DID doc, then the DID Doc is successfully updated.
+    // TODO Test When the owner of the server sends a valid Presentation but the DID Doc id doesn't match the actual DID, then 400 - Bad Request is returned.
 }

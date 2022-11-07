@@ -1,4 +1,5 @@
 use chrono::prelude::*;
+use ssi::did_resolve::SeriesResolver;
 
 use std::collections::HashMap;
 use std::fs;
@@ -9,8 +10,6 @@ use ssi::vc::{
     Context, Contexts, Credential, CredentialOrJWT, LinkedDataProofOptions, Presentation,
     VCDateTime, URI,
 };
-
-use crate::test_resolver::DIDWebTestResolver;
 
 pub fn read_file(filename: &str) -> Result<String, String> {
     fs::read(PathBuf::from(filename))
@@ -37,7 +36,7 @@ pub async fn create_credential_or_panic(
     attributes: Option<HashMap<String, rocket::serde::json::serde_json::Value>>,
     issuance_date: Option<VCDateTime>,
     expiration_date: Option<VCDateTime>,
-    resolver: &DIDWebTestResolver<'_>,
+    resolver: &SeriesResolver<'_>,
     verification_method: &str,
     key: &ssi::jwk::JWK,
 ) -> Credential {
@@ -91,7 +90,7 @@ pub async fn create_presentation_or_panic(
     holder: &str,
     credentials: OneOrMany<CredentialOrJWT>,
     proof_options: &LinkedDataProofOptions,
-    resolver: &DIDWebTestResolver<'_>,
+    resolver: &SeriesResolver<'_>,
     key: &ssi::jwk::JWK,
 ) -> Presentation {
     let mut presentation = Presentation {

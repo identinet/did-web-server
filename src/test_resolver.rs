@@ -8,15 +8,15 @@
 /// rocket client
 ///
 use crate::store::DIDWebStore;
-use crate::util::path_to_str;
+use crate::utils::path_to_string;
 use async_trait::async_trait;
 use either::{Either, Left, Right};
 use rocket::http::Status;
 use rocket::local::asynchronous::Client;
 use ssi::did::{DIDMethod, Document};
 use ssi::did_resolve::{
-    DIDResolver, DocumentMetadata, ResolutionInputMetadata, ResolutionMetadata, ERROR_INVALID_DID,
-    ERROR_NOT_FOUND, TYPE_DID_LD_JSON,
+    DIDResolver, DocumentMetadata, ResolutionInputMetadata, ResolutionMetadata,
+    ERROR_METHOD_NOT_SUPPORTED, ERROR_NOT_FOUND, TYPE_DID_LD_JSON,
 };
 use std::path::PathBuf;
 
@@ -25,7 +25,7 @@ fn did_web_id(did: &str) -> Result<Either<PathBuf, PathBuf>, ResolutionMetadata>
     let _domain_name = match (parts.next(), parts.next(), parts.next()) {
         (Some("did"), Some("web"), Some(domain_name)) => domain_name,
         _ => {
-            return Err(ResolutionMetadata::from_error(ERROR_INVALID_DID));
+            return Err(ResolutionMetadata::from_error(ERROR_METHOD_NOT_SUPPORTED));
         }
     };
     let path = match parts.peek() {
@@ -126,7 +126,7 @@ impl DIDResolver for DIDWebTestResolver<'_> {
             }
         } else if let Some(client) = self.client {
             let id_to_url = |id: PathBuf| {
-                let path = path_to_str(&id, "/");
+                let path = path_to_string(&id, "/");
                 format!("/{}", path)
             };
             let url = id.map_right(id_to_url).map_left(id_to_url);
