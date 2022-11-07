@@ -36,7 +36,7 @@ extern crate rocket;
 /// - `id` - requested id, e.g. `alice`
 /// - returns ProofParameters
 #[allow(clippy::unused_unit)]
-#[get("/v1/web/<id..>?proofParameters")]
+#[get("/<id..>?proofParameters")]
 fn get_proof_parameters(
     config: &rocket::State<Config>,
     id: PathBuf,
@@ -51,25 +51,8 @@ fn get_proof_parameters(
 }
 
 #[allow(clippy::unused_unit)]
-#[get("/<id..>?proofParameters")]
-fn get_proof_parameters_root(
-    config: &rocket::State<Config>,
-    id: PathBuf,
-) -> Result<Json<ProofParameters>, DIDError> {
-    get_proof_parameters(config, id)
-}
-
-#[allow(clippy::unused_unit)]
-#[get("/v1/web/.well-known/did.json?proofParameters")]
-fn get_proof_parameters_wellknown(
-    config: &rocket::State<Config>,
-) -> Result<Json<ProofParameters>, DIDError> {
-    get_proof_parameters(config, PathBuf::from("/.well-known/did.json"))
-}
-
-#[allow(clippy::unused_unit)]
 #[get("/.well-known/did.json?proofParameters")]
-fn get_proof_parameters_wellknown_root(
+fn get_proof_parameters_wellknown(
     config: &rocket::State<Config>,
 ) -> Result<Json<ProofParameters>, DIDError> {
     get_proof_parameters(config, PathBuf::from("/.well-known/did.json"))
@@ -80,7 +63,7 @@ fn get_proof_parameters_wellknown_root(
 /// - `config` Global Rocket configuration
 /// - `id` - requested id, e.g. `alice`
 /// - returns JSON encoded DID document
-#[get("/v1/web/<id..>")]
+#[get("/<id..>")]
 fn get(
     config: &rocket::State<Config>,
     id: PathBuf,
@@ -111,25 +94,9 @@ fn get(
     (content_type, result.map(Json))
 }
 
-#[get("/<id..>")]
-fn get_root(
-    config: &rocket::State<Config>,
-    id: PathBuf,
-) -> (ContentType, Result<Json<Document>, DIDError>) {
-    get(config, id)
-}
-
-// Required to explicitly allow access to a path starting with "."
-#[get("/v1/web/.well-known/did.json")]
-fn get_wellknown(
-    config: &rocket::State<Config>,
-) -> (ContentType, Result<Json<Document>, DIDError>) {
-    get(config, PathBuf::from("/.well-known/did.json"))
-}
-
 // Required to explicitly allow access to a path starting with "."
 #[get("/.well-known/did.json")]
-fn get_wellknown_root(
+fn get_wellknown(
     config: &rocket::State<Config>,
 ) -> (ContentType, Result<Json<Document>, DIDError>) {
     get(config, PathBuf::from("/.well-known/did.json"))
@@ -148,7 +115,7 @@ fn get_wellknown_root(
 ///   key
 /// * Support subfolder so that the DIDs don't only have to live in the top-level folder
 /// * implement .well-known support
-#[post("/v1/web/<id..>", data = "<doc>")]
+#[post("/<id..>", data = "<doc>")]
 fn create(
     config: &rocket::State<Config>,
     id: PathBuf,
@@ -182,7 +149,7 @@ fn create(
 /// # TODO
 ///
 /// * implement .well-known support
-#[put("/v1/web/<id..>", data = "<presentation>")]
+#[put("/<id..>", data = "<presentation>")]
 async fn update(
     config: &rocket::State<Config>,
     id: PathBuf,
@@ -389,7 +356,7 @@ async fn update(
     match diddoc {
         Some(document) => config
             .store
-            .update(&id, document) // TODO: confinue here to fix the update methode .. how to do that?
+            .update(&id, document)
             .and_then(|doc| ProofParameters::new(config, &doc))
             .map_err(log("post, got error:"))
             .map(Json),
@@ -404,7 +371,7 @@ async fn update(
 /// # TODO
 ///
 /// * Implement authorization - admin + user who can delete their own id .. good?
-#[delete("/v1/web/<id..>")]
+#[delete("/<id..>")]
 fn delete(config: &rocket::State<Config>, id: PathBuf) -> Result<Json<String>, DIDError> {
     // test existence - if not, then return 404
     // try deletion - return 503 if something goes wrong, otherwise 200
@@ -440,12 +407,8 @@ fn ship(config: Config) -> rocket::Rocket<rocket::Build> {
             delete,
             get,
             get_proof_parameters,
-            get_proof_parameters_root,
             get_proof_parameters_wellknown,
-            get_proof_parameters_wellknown_root,
-            get_root,
             get_wellknown,
-            get_wellknown_root,
             update,
         ],
     )

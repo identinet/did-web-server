@@ -131,8 +131,8 @@ impl DIDResolver for DIDWebTestResolver<'_> {
             };
             let url = id.map_right(id_to_url).map_left(id_to_url);
             let resp = match url {
-                Right(url) => client.get(uri!(crate::get_root(id = PathBuf::from(url)))),
-                Left(_url) => client.get(uri!(crate::get_wellknown_root())),
+                Right(url) => client.get(uri!(crate::get(id = PathBuf::from(url)))),
+                Left(_url) => client.get(uri!(crate::get_wellknown())),
             }
             .dispatch()
             .await;

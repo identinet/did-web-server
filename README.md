@@ -39,12 +39,12 @@ SHOW_LEGEND()
 
 ### API
 
-| **Functionality**     | **Method** | **Path**                                        | **Return Codes**                                                                   |
-| --------------------- | ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Retrieve DID document | GET        | `/<id>/did.json` or<br> `/v1/web/<id>/did.json` | `200` OK<br> `400` Bad Request<br> `404` Not Found<br> `500` Internal Server Error |
-| Create DID document   | POST       | `/v1/web/<id>/did.json`                         | `200`<br> `400`                                                                    |
-| Update DID document   | PUT        | `/v1/web/<id>/did.json`                         | `200`<br> `400`                                                                    |
-| Delete DID document   | DELETE     | `/v1/web/<id>/did.json`                         | `200`<br> `400`                                                                    |
+| **Functionality**     | **Method** | **Path**         | **Return Codes**                                                                   |
+| --------------------- | ---------- | ---------------- | ---------------------------------------------------------------------------------- |
+| Retrieve DID document | GET        | `/<id>/did.json` | `200` OK<br> `400` Bad Request<br> `404` Not Found<br> `500` Internal Server Error |
+| Create DID document   | POST       | `/<id>/did.json` | `200`<br> `400`                                                                    |
+| Update DID document   | PUT        | `/<id>/did.json` | `200`<br> `400`                                                                    |
+| Delete DID document   | DELETE     | `/<id>/did.json` | `200`<br> `400`                                                                    |
 
 ### Technology Stack
 
@@ -233,7 +233,7 @@ Prepare presentation with a DID document credential:
 - Ensure presentation is valid:
   `didkit vc-verify-presentation -R http://localhost:8080/1.0/identifiers/ < presentation-signed.json`
 - Update DID Document:
-  `curl -d @presentation-signed.json -X PUT http://localhost:8000/v1/web/valid/did.json`
+  `curl -d @presentation-signed.json -X PUT http://localhost:8000/valid/did.json`
 
 ### Delete DID
 
