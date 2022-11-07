@@ -1,6 +1,6 @@
 # Documentation: https://just.systems/man/en/
 
-set shell := ["bash", "-c"]
+set shell := ["bash", "-euo", "pipefail", "-c"]
 
 # Display this help
 help:
