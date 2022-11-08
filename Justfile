@@ -2,6 +2,8 @@
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
+DIST_FOLDER := "target"
+
 # Display this help
 help:
     @just -l
@@ -90,4 +92,4 @@ clean-bloat:
 
 # Clean build folder
 clean:
-    @rm -rvf target
+    @rm -rvf {{ DIST_FOLDER }}
