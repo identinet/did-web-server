@@ -29,7 +29,15 @@ impl Config {
             external_hostname: get_env("DID_SERVER_EXTERNAL_HOSTNAME", &config.external_hostname),
             external_port: get_env("DID_SERVER_EXTERNAL_PORT", &config.external_port),
             external_path: get_env("DID_SERVER_EXTERNAL_PATH", &config.external_path),
-            owner: std::env::var("DID_SERVER_OWNER").unwrap(),
+            owner: std::env::var("DID_SERVER_OWNER")
+                .and_then(|owner| {
+                    if owner.is_empty() {
+                        Err(std::env::VarError::NotPresent)
+                    } else {
+                        Ok(owner)
+                    }
+                })
+                .unwrap(),
             reslover_options: ResolverOptions {
                 did_resolver: std::env::var("DID_SERVER_RESOLVER")
                     .ok()
@@ -76,7 +84,7 @@ impl Default for Config {
             external_hostname: "localhost".to_string(),
             external_port: "8000".to_string(),
             external_path: "/".to_string(),
-            owner: "_did:in:valid".to_string(),
+            owner: "<invalidDID>".to_string(),
             reslover_options: ResolverOptions {
                 did_resolver: None,
                 did_resolver_override: None,

@@ -49,6 +49,8 @@ fn integration_create() {
 
     // create
     // ------
+    // TODO: create a credential and a presentation for the DID
+    // TODO: pass the owner to the server
     let filename = "./src/__fixtures__/valid-did.json";
     let doc = utils::read_file(filename);
     assert!(
@@ -127,8 +129,11 @@ fn integration_create() {
     assert_eq!(
         response.status(),
         Status::Forbidden,
-        "When DID exists in store and is created again, then return 403 - bad request."
+        "When DID exists in store and is created again, then return 403 - forbidden."
     );
+
+    // TODO: create as non-owner: When create is attempted by a DID that's not the owner, then return 401 - unauthorized.
+    // TODO: create a did document in the wrong location: When a valid presentation and DID document is sent by the owner but the location of the document is wrong, then return 400 - bad request.
 }
 
 #[test]
@@ -227,12 +232,21 @@ async fn integration_update() {
         "When DID is created in store, then the proof domain is 'localhost'."
     );
     assert_eq!(
-            proof_parameters.challenge, "d992a52400965351e261fdcfa47469cb3e0fa06cc658208c3c95bddf577dc29a",
+            proof_parameters.challenge.unwrap(), "d992a52400965351e261fdcfa47469cb3e0fa06cc658208c3c95bddf577dc29a",
             "When DID is created in store, then the challenge is set to a unique but deterministic value."
         );
 
     // update
     // ------
+    // Fetch new proof parameters
+    let response = client
+        .get(uri!(super::get_proof_parameters(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .dispatch()
+        .await;
+    let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+    // build a credential from the did document
     let filename = "./src/__fixtures__/valid-did.jwk";
     let key = utils::read_file(filename);
     assert!(
@@ -270,7 +284,7 @@ async fn integration_update() {
         &LinkedDataProofOptions {
             type_: Some("Ed25519Signature2018".to_string()),
             domain: Some(proof_parameters.domain.to_string()),
-            challenge: Some(proof_parameters.challenge.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
             proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
             verification_method: Some(URI::String(
                 "did:web:localhost%3A8000:valid-did#controller".to_string(),
@@ -333,7 +347,7 @@ async fn integration_update() {
         &LinkedDataProofOptions {
             type_: Some("Ed25519Signature2018".to_string()),
             domain: Some(proof_parameters.domain.to_string()),
-            challenge: Some(proof_parameters.challenge.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
             proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
             verification_method: Some(URI::String(
                 "did:web:localhost%3A8000:valid-did#controller".to_string(),
@@ -390,7 +404,7 @@ async fn integration_update() {
         &LinkedDataProofOptions {
             type_: Some("Ed25519Signature2018".to_string()),
             domain: Some(proof_parameters.domain.to_string()),
-            challenge: Some(proof_parameters.challenge.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
             proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
             verification_method: Some(URI::String(
                 "did:web:localhost%3A8000:valid-did#controller".to_string(),
@@ -453,7 +467,7 @@ async fn integration_update() {
         &LinkedDataProofOptions {
             type_: Some("Ed25519Signature2018".to_string()),
             domain: Some(proof_parameters.domain.to_string()),
-            challenge: Some(proof_parameters.challenge.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
             proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
             verification_method: Some(URI::String(
                 "did:web:localhost%3A8000:valid-did#controller".to_string(),
@@ -516,7 +530,7 @@ async fn integration_update() {
         &LinkedDataProofOptions {
             type_: Some("Ed25519Signature2018".to_string()),
             domain: Some(proof_parameters.domain.to_string()),
-            challenge: Some(proof_parameters.challenge.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
             proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
             verification_method: Some(URI::String(NOT_OWNER_VERIFICATION_METHOD.to_string())),
             ..LinkedDataProofOptions::default()

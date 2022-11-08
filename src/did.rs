@@ -13,11 +13,11 @@ static URL_SEGMENT_SEPARATOR: &str = "/";
 /// Dcoument.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ProofParameters {
-    /// Challenge is the sha256 hash of the current DID Document
-    pub challenge: String,
+    pub did: String,
+    /// Challenge is the sha256 hash of the current DID Document, if present
+    pub challenge: Option<String>,
     pub domain: String,
     pub proof_purpose: ProofPurpose,
-    pub did: String,
 }
 
 impl ProofParameters {
@@ -29,11 +29,18 @@ impl ProofParameters {
         serde_json::to_string(doc)
             .map_err(|e| DIDError::ContentConversion(e.to_string()))
             .map(|s| ProofParameters {
-                did: doc.id.to_string(),
-                challenge: digest(s),
-                domain: config.external_hostname.to_string(),
-                proof_purpose: ProofPurpose::Authentication,
+                challenge: Some(digest(s)),
+                ..ProofParameters::without_challenge(config, doc.id.to_string())
             })
+    }
+    /// Create ProofParameters without challenge
+    pub fn without_challenge(config: &rocket::State<Config>, did: String) -> ProofParameters {
+        ProofParameters {
+            did,
+            challenge: None,
+            domain: config.external_hostname.to_string(),
+            proof_purpose: ProofPurpose::Authentication,
+        }
     }
 }
 

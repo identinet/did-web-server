@@ -13,14 +13,15 @@ use crate::config::Config;
 use crate::content_types::DIDContentTypes;
 use crate::did::{DIDWeb, ProofParameters};
 use crate::error::{CustomStatus, DIDError};
-use crate::utils::log;
-use chrono::{DateTime, Utc};
+use crate::utils::{compare_date, get_did_doc_from_presentation, log};
+use chrono::Utc;
 use rocket::figment::providers::{Env, Serialized};
 use rocket::figment::{Figment, Profile};
 use rocket::http::ContentType;
 use rocket::serde::json::Json;
 use ssi::did::Document;
-use ssi::vc::{CredentialOrJWT, LinkedDataProofOptions, Presentation};
+use ssi::vc::{LinkedDataProofOptions, Presentation};
+use std::cmp::Ordering;
 use std::path::PathBuf;
 
 #[cfg(test)]
@@ -121,12 +122,18 @@ fn get_wellknown(
 /// * Support subfolder so that the DIDs don't only have to live in the top-level folder
 /// * implement .well-known support
 #[post("/<id..>", data = "<doc>")]
+// #[post("/<id..>", data = "<presentation>")]
 fn create(
     config: &rocket::State<Config>,
     id: PathBuf,
     doc: Json<Document>,
+    // presentation: Json<Presentation>,
 ) -> Result<CustomStatus<Json<ProofParameters>>, DIDError> {
-    // guard to ensure that the DID is in general manageable
+    // TODO the presentation must be signed by the owner's DID / holder
+    // TODO the VC must be a valid DID doc for the ID + it must also be signed by the owner
+    let _proof_parameters = ProofParameters::without_challenge(config, config.owner.clone());
+
+    // guard to ensure that the DID is manageable
     let computed_did = match DIDWeb::did_from_config(config, &id) {
         Ok(did) => did,
         Err(e) => return Err(e),
@@ -164,9 +171,9 @@ async fn update(
     let doc = config.store.get(&id)?;
     let proof_parameters = ProofParameters::new(config, &doc)?;
 
-    // verify that at least one proof refers to the controller of this DID; other proofs are
-    // ignored for this case
-    let authentication_methods_in_document: Vec<String> = doc
+    // extract the supported verification methods in the stored did document
+    // TODO: use ssi::did_resolve::get_verification_methods(did, verification_relationship, resolver) instead?
+    let verification_methods_in_doc: Vec<String> = doc
         .verification_method
         .as_ref()
         .map(|verification_methods| {
@@ -177,9 +184,8 @@ async fn update(
         })
         .unwrap_or_else(Vec::new);
 
-    // next, walk through the proof sections and ensure that a least one refers to an ID in the
-    // authentication section of the DID Document
-    // TODO: use ssi::did_resolve::get_verification_methods(did, verification_relationship, resolver) instead?
+    // ensure that at least one of the verification methods that are present in the stored did document is
+    // used in the proofs that are attached to the presentation
     presentation
         .proof
         .as_ref()
@@ -191,10 +197,11 @@ async fn update(
                 proof
                     .verification_method
                     .as_ref()
-                    .and_then(|verification_method| {
-                        if authentication_methods_in_document.contains(verification_method) {
-                            println!("proof found {}", verification_method);
-                            Some(verification_method)
+                    .and_then(|verification_method_in_presentation| {
+                        if verification_methods_in_doc.contains(verification_method_in_presentation)
+                        {
+                            println!("proof found {}", verification_method_in_presentation);
+                            Some(verification_method_in_presentation)
                         } else {
                             println!("proof not found");
                             None
@@ -210,18 +217,18 @@ async fn update(
             }
         })?;
 
-    // if there's no valid presentation by the user, see if the owner signed the presentation
-    println!(
-        "proof parameters, challenge: {}",
-        proof_parameters.challenge
-    );
-    println!("proof parameters, domain: {}", proof_parameters.domain);
+    // TODO: maybe: if there's no valid presentation by the user, see if the owner signed the presentation
+
+    match proof_parameters.challenge {
+        Some(ref v) => println!("proof parameters, challenge: {}", v),
+        None => println!("proof parameters, challenge: no challenge present"),
+    }
     let opts = LinkedDataProofOptions {
-        challenge: Some(proof_parameters.challenge.to_string()),
+        challenge: Some(proof_parameters.challenge.unwrap()), // fail if challenge is not present
         domain: Some(proof_parameters.domain.to_string()),
         proof_purpose: Some(ssi::vc::ProofPurpose::Authentication),
-        // created: xx; // this is set to now_ms, not sure if that's correct .. I guess that is should have be created max a minute ago
-        ..Default::default()
+        // created: xx; // TODO this is set to now_ms, not sure if that's correct .. I guess that is should have be created max a minute ago
+        ..LinkedDataProofOptions::default()
     };
 
     let resolver = config.reslover_options.get_resolver();
@@ -244,7 +251,7 @@ async fn update(
     println!("checks {}", result.checks.len());
     println!("warn {}", result.warnings.len());
     println!("errors {}", result.errors.len());
-    println!("errors: {}", result.errors.join("; "));
+    println!("errors: {}", result.errors.join(", "));
 
     if !result.errors.is_empty() {
         return Err(DIDError::PresentationInvalid(
@@ -255,101 +262,31 @@ async fn update(
     // - [ ] find the credential that was issued by the DID itself .. or the controlling DID?
     // - [ ] ensure that the DID is the subject of the DID Document
 
-    // ensure there's A valid did document in the credentials
-    let (vc, diddoc) = presentation
-        .verifiable_credential
-        .as_ref()
-        .and_then(|vcs| {
-            println!("evaluating");
-            vcs.into_iter()
-                .map(|credential| match credential {
-                    CredentialOrJWT::Credential(credential) => {
-                        credential.credential_subject.clone().into_iter().fold(
-                            None,
-                            |acc, credential_subject| {
-                                // - [ ] wie stelle ich den Typ eines DidDocs fest? as fehlt irgendwie in der DID Doc definition
-                                // - [x] und prüfen, ob die ID die eigene ID ist
-                                let id_equals_proof_parameter_did =
-                                    credential_subject.id.as_ref().and_then(|id| {
-                                        println!("credential subject: {:?}", id.to_string());
-                                        if id.to_string() == proof_parameters.did {
-                                            Some(true)
-                                        } else {
-                                            None
-                                        }
-                                    });
-                                if acc.is_none() && id_equals_proof_parameter_did.is_some() {
-                                    println!(
-                                        "credential has been issued for DID {}",
-                                        proof_parameters.did
-                                    );
-                                    // TODO: ensure that document is a DID Doc
-                                    Some((credential, credential_subject))
-                                } else {
-                                    acc
-                                }
-                            },
-                        )
-                    }
-                    CredentialOrJWT::JWT(_) => {
-                        println!("credential jwt");
-                        // ignore JWT credentials
-                        None
-                    }
-                })
-                .fold(
-                    None,
-                    |acc, credential| if acc.is_none() { credential } else { acc },
-                )
-        })
-        .ok_or_else(|| DIDError::DIDDocMissing("No valid DID Doc credential found".to_string()))?;
+    // ensure there's a valid did document in the credentials
+    let presentation = presentation.into_inner();
+    let (vc, diddoc) = get_did_doc_from_presentation(&presentation, proof_parameters.did)?;
 
     // ensure that inssuance_date is not in the future
-    match &vc.issuance_date {
-        Some(issuance_date) => {
-            let issuance_date = issuance_date.clone();
-            match DateTime::parse_from_rfc3339(&String::from(issuance_date)) {
-                Ok(issuance_date) => {
-                    let now = Utc::now();
-                    if issuance_date < now {
-                        Ok(true)
-                    } else {
-                        Err(DIDError::PresentationInvalid(
-                            "Presentation invalid, DID Doc credential has been issued in the future".to_string(),
-                        ))
-                    }
-                }
-                _ => Err(DIDError::PresentationInvalid(
-                    "Presentation invalid, DID Doc credential has been issued in the future"
-                        .to_string(),
-                )),
-            }
-        }
-        None => Ok(true),
-    }?;
+    compare_date(&vc.issuance_date, Ordering::Less, Utc::now()).ok_or_else(|| {
+        DIDError::PresentationInvalid(
+            "Presentation invalid, DID Doc credential has been issued in the future or has no issuance date".to_string(),
+            ) })?;
 
     // verify expiration_date as it's not verified by the verify call https://github.com/spruceid/ssi/issues/470
     match &vc.expiration_date {
-        Some(expiration_date) => {
-            let expiration_date = expiration_date.clone();
-            match DateTime::parse_from_rfc3339(&String::from(expiration_date)) {
-                Ok(expiration_date) => {
-                    let now = Utc::now();
-                    if expiration_date > now {
-                        Ok(true)
-                    } else {
-                        Err(DIDError::PresentationInvalid(
-                            "Presentation invalid, DID Doc credential expired".to_string(),
-                        ))
-                    }
-                }
-                _ => Err(DIDError::PresentationInvalid(
-                    "Presentation invalid, DID Doc credential expired".to_string(),
-                )),
-            }
-        }
-        None => Ok(true),
+        Some(expiration_date) => compare_date(
+            &Some(expiration_date.clone()),
+            Ordering::Greater,
+            Utc::now(),
+        )
+        .ok_or_else(|| {
+            DIDError::PresentationInvalid(
+                "Presentation invalid, DID Doc credential has expired".to_string(),
+            )
+        }),
+        _ => Ok(Ordering::Greater),
     }?;
+
     // TODO: verify not before use - applies only to JWT claims
 
     // unsure how to easily convert a CredentialSubject into a Document. Via json encoding? - not
