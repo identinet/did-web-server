@@ -2,7 +2,9 @@ use std::path::Path;
 use std::{cmp::Ordering, fmt};
 
 use chrono::{DateTime, Utc};
-use ssi::vc::{Credential, CredentialOrJWT, CredentialSubject, Presentation, VCDateTime};
+use ssi::did::{Document, VerificationRelationship};
+use ssi::one_or_many::OneOrMany;
+use ssi::vc::{Credential, CredentialOrJWT, CredentialSubject, Presentation, Proof, VCDateTime};
 
 use crate::error::DIDError;
 
@@ -119,4 +121,47 @@ pub fn compare_date(
         }
         _ => None,
     }
+}
+
+/// ensure that at least one of the verification methods from the did document is
+/// used in the proofs
+///
+/// * The bool return value can be ignored, it's always `true` if a matching proof was found
+pub fn ensure_proof_matches_verification_method(
+    did_doc: &Document,
+    verification_relationship: VerificationRelationship,
+    proofs: &Option<OneOrMany<Proof>>,
+) -> Result<bool, DIDError> {
+    // extract the supported verification methods from did document
+    let verification_methods_in_did_doc: Vec<String> = did_doc
+        .get_verification_method_ids(verification_relationship)
+        .unwrap_or_else(|_| Vec::new());
+    proofs
+        .as_ref()
+        .ok_or_else(|| {
+            DIDError::PresentationInvalid("Presentation invalid, no proof found".to_string())
+        })
+        .and_then(|proofs| {
+            if proofs.any(|proof| {
+                proof
+                    .verification_method
+                    .as_ref()
+                    .and_then(|verification_method| {
+                        if verification_methods_in_did_doc.contains(verification_method) {
+                            println!("proof found {}", verification_method);
+                            Some(verification_method)
+                        } else {
+                            println!("proof not found");
+                            None
+                        }
+                    })
+                    .is_some()
+            }) {
+                Ok(true)
+            } else {
+                Err(DIDError::PresentationInvalid(
+                    "Presentation invalid, no proof has been signed by expected did".to_string(),
+                ))
+            }
+        })
 }

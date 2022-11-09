@@ -13,13 +13,15 @@ use crate::config::Config;
 use crate::content_types::DIDContentTypes;
 use crate::did::{DIDWeb, ProofParameters};
 use crate::error::{CustomStatus, DIDError};
-use crate::utils::{compare_date, get_did_doc_from_presentation, log};
+use crate::utils::{
+    compare_date, ensure_proof_matches_verification_method, get_did_doc_from_presentation, log,
+};
 use chrono::Utc;
 use rocket::figment::providers::{Env, Serialized};
 use rocket::figment::{Figment, Profile};
 use rocket::http::ContentType;
 use rocket::serde::json::Json;
-use ssi::did::Document;
+use ssi::did::{Document, VerificationRelationship};
 use ssi::vc::{LinkedDataProofOptions, Presentation};
 use std::cmp::Ordering;
 use std::path::PathBuf;
@@ -129,9 +131,9 @@ fn create(
     doc: Json<Document>,
     // presentation: Json<Presentation>,
 ) -> Result<CustomStatus<Json<ProofParameters>>, DIDError> {
+    let _proof_parameters = ProofParameters::without_challenge(config, config.owner.clone());
     // TODO the presentation must be signed by the owner's DID / holder
     // TODO the VC must be a valid DID doc for the ID + it must also be signed by the owner
-    let _proof_parameters = ProofParameters::without_challenge(config, config.owner.clone());
 
     // guard to ensure that the DID is manageable
     let computed_did = match DIDWeb::did_from_config(config, &id) {
@@ -160,7 +162,7 @@ fn create(
 ///
 /// # TODO
 ///
-/// * implement .well-known support
+/// * [ ] implement .well-known support
 #[put("/<id..>", data = "<presentation>")]
 async fn update(
     config: &rocket::State<Config>,
@@ -168,61 +170,23 @@ async fn update(
     presentation: Json<Presentation>,
 ) -> Result<Json<ProofParameters>, DIDError> {
     // retrieve proof parameters required to verify the correctness of the presentation
-    let doc = config.store.get(&id)?;
-    let proof_parameters = ProofParameters::new(config, &doc)?;
+    let did_doc = config.store.get(&id)?;
+    let proof_parameters = ProofParameters::new(config, &did_doc)?;
 
-    // extract the supported verification methods in the stored did document
-    // TODO: use ssi::did_resolve::get_verification_methods(did, verification_relationship, resolver) instead?
-    let verification_methods_in_doc: Vec<String> = doc
-        .verification_method
-        .as_ref()
-        .map(|verification_methods| {
-            verification_methods
-                .iter()
-                .map(|verification_method| verification_method.get_id(&proof_parameters.did))
-                .collect::<Vec<String>>()
-        })
-        .unwrap_or_else(Vec::new);
-
-    // ensure that at least one of the verification methods that are present in the stored did document is
-    // used in the proofs that are attached to the presentation
-    presentation
-        .proof
-        .as_ref()
-        .ok_or_else(|| {
-            DIDError::PresentationInvalid("Presentation invalid, no proof found".to_string())
-        })
-        .and_then(|proofs| {
-            if proofs.any(|proof| {
-                proof
-                    .verification_method
-                    .as_ref()
-                    .and_then(|verification_method_in_presentation| {
-                        if verification_methods_in_doc.contains(verification_method_in_presentation)
-                        {
-                            println!("proof found {}", verification_method_in_presentation);
-                            Some(verification_method_in_presentation)
-                        } else {
-                            println!("proof not found");
-                            None
-                        }
-                    })
-                    .is_some()
-            }) {
-                Ok(true)
-            } else {
-                Err(DIDError::PresentationInvalid(
-                    "Presentation invalid, no proof has been signed by expected did".to_string(),
-                ))
-            }
-        })?;
+    ensure_proof_matches_verification_method(
+        &did_doc,
+        VerificationRelationship::AssertionMethod,
+        &presentation.proof,
+    )?;
 
     // TODO: maybe: if there's no valid presentation by the user, see if the owner signed the presentation
 
+    // TODO: remove debug output
     match proof_parameters.challenge {
         Some(ref v) => println!("proof parameters, challenge: {}", v),
         None => println!("proof parameters, challenge: no challenge present"),
     }
+
     let opts = LinkedDataProofOptions {
         challenge: Some(proof_parameters.challenge.unwrap()), // fail if challenge is not present
         domain: Some(proof_parameters.domain.to_string()),
@@ -244,10 +208,12 @@ async fn update(
         resolvers: vec![&test_resolver, &std_resolvers],
     };
 
-    // TODO: test if all the containing credentials are also fully verified
+    // TODO: test if all the containing credentials are also fully verified - is this poperly done by the verify call?
     // - [x] ensure that signatures are correct
     // - [-] are the options also applied to every single credential or do they need to be reapplied?
     let result = presentation.verify(Some(opts), &resolver).await;
+
+    // TODO: remove debug output
     println!("checks {}", result.checks.len());
     println!("warn {}", result.warnings.len());
     println!("errors {}", result.errors.len());
@@ -259,12 +225,12 @@ async fn update(
         ));
     }
 
+    // TODO: ?
     // - [ ] find the credential that was issued by the DID itself .. or the controlling DID?
     // - [ ] ensure that the DID is the subject of the DID Document
 
-    // ensure there's a valid did document in the credentials
     let presentation = presentation.into_inner();
-    let (vc, diddoc) = get_did_doc_from_presentation(&presentation, proof_parameters.did)?;
+    let (vc, did_doc) = get_did_doc_from_presentation(&presentation, proof_parameters.did)?;
 
     // ensure that inssuance_date is not in the future
     compare_date(&vc.issuance_date, Ordering::Less, Utc::now()).ok_or_else(|| {
@@ -272,7 +238,7 @@ async fn update(
             "Presentation invalid, DID Doc credential has been issued in the future or has no issuance date".to_string(),
             ) })?;
 
-    // verify expiration_date as it's not verified by the verify call https://github.com/spruceid/ssi/issues/470
+    // verify expiration_date as it's not verified by verify() https://github.com/spruceid/ssi/issues/470
     match &vc.expiration_date {
         Some(expiration_date) => compare_date(
             &Some(expiration_date.clone()),
@@ -287,15 +253,14 @@ async fn update(
         _ => Ok(Ordering::Greater),
     }?;
 
-    // TODO: verify not before use - applies only to JWT claims
+    // TODO: verify "not before use" date - applies only to JWT claims
 
-    // unsure how to easily convert a CredentialSubject into a Document. Via json encoding? - not
-    // beautiful!!
-    let diddoc = serde_json::to_string(&diddoc)
+    // FIXME: unsure how to easily convert a CredentialSubject into a Document. Via json encoding? - not beautiful!!
+    let did_doc = serde_json::to_string(&did_doc)
         .ok()
         // .map(log("json"))
         .and_then(|s| serde_json::from_str::<Document>(&s).ok());
-    match diddoc {
+    match did_doc {
         Some(document) => config
             .store
             .update(&id, document)
