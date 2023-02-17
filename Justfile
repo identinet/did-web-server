@@ -74,10 +74,6 @@ docs:
 update:
     cargo update
 
-# Upgrade dependencies, i.e. find newer, possibly incompatible versions and adjust code
-upgrade:
-    cargo outdated -wR
-
 # Remove unused dependencies (requires nightly version of compiler)
 clean-udeps:
     cargo udeps
