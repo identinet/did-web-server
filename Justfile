@@ -1,6 +1,7 @@
 # Documentation: https://just.systems/man/en/
+# Documentation: https://www.nushell.sh/book/
 
-set shell := ["bash", "-euo", "pipefail", "-c"]
+set shell := ["nu", "-c"]
 
 DIST_FOLDER := "target"
 
@@ -12,18 +13,19 @@ help:
 install:
     @echo "Testing depedencies"
     @# run `npx husky install` to install hooks
-    @test "$(git config core.hooksPath)" = ".husky" || git config core.hooksPath .husky
+    @if (git config core.hooksPath) != ".husky" {git config core.hooksPath .husky}
     @echo "All depedencies found"
 
 generate-owner-key:
-    test ! -e owner.jwk && didkit key generate ed25519 > owner.jwk
+    if not ("owner.jwk" | path exists) {didkit key generate ed25519 out> owner.jwk}
 
 # Continuously run and build application for development purposes
 dev: install generate-owner-key
-    DID_SERVER_BACKEND=file \
-    DID_SERVER_OWNER="$(didkit key-to-did -k owner.jwk)" \
-    DID_SERVER_PORT=8000 \
-    RUSTC_WRAPPER="$(which sccache)" \
+    #!/usr/bin/env nu
+    $env.DID_SERVER_BACKEND = file
+    $env.DID_SERVER_OWNER = didkit key-to-did -k owner.jwk
+    $env.DID_SERVER_PORT = 8000
+    $env.RUSTC_WRAPPER = (which sccache)
     cargo watch -w src -x run
 
 # Run universal-resolver and did-web-resolver with did-web-server in docker
@@ -32,7 +34,7 @@ dev-compose: install
 
 # Fast check to verify that the codes still compiles
 check:
-    cargo check --features=fail-on-warnings
+    cargo check --all-targets --features=fail-on-warnings
 
 # Continuously verify that the codes still compiles
 dev-check: install
@@ -44,11 +46,11 @@ build: test
 
 # Build debug version of application
 dev-build: install
-    RUSTC_WRAPPER="$(which sccache)" cargo build
+    $env.RUSTC_WRAPPER=(which sccache | get path.0); cargo build
 
 # Docker build
 docker-build:
-    docker build -t did-web-server:latest -t did-web-server:$(taplo get .package.version < Cargo.toml) .
+    docker build -t did-web-server:latest -t $"did-web-server:(open Cargo.toml | get package.version)" .
 
 # Test application
 test tests='':
@@ -73,6 +75,27 @@ docs:
 # Update dependencies
 update:
     cargo update
+
+# Update version tag in script
+tag:
+    #!/usr/bin/env nu
+    let TAG = do -c {git describe --tags --abbrev=0 --exact-match}
+    # Alternative that unforatunately deletes comments
+    # open Cargo.toml | update package.version $TAG | save -f Cargo.toml
+    sed -i -e $'s/^version = "[0-9.]*"$/version = "($TAG)"/' Cargo.toml
+
+# Update changelog
+changelog:
+    git cliff > CHANGELOG.md
+
+# Create a new release
+release:
+    #!/usr/bin/env nu
+    let TAG = do -c {git describe --tags --abbrev=0 --exact-match}
+    git cliff --strip all --current | gh release create -F - $TAG
+
+# Post release adjustments
+post-release: tag changelog
 
 # Remove unused dependencies (requires nightly version of compiler)
 clean-udeps:
