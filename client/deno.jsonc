@@ -1,0 +1,8 @@
+// Documentation: https://deno.land/manual@v1.33.1/getting_started/configuration_file
+{
+  "importMap": "import_map.json",
+  "tasks": {},
+  "fmt": {
+    "lineWidth": 120
+  }
+}

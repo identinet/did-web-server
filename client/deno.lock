@@ -1,0 +1,27 @@
+{
+  "version": "2",
+  "remote": {
+    "https://cdn.skypack.dev/-/fluture-sanctuary-types@v7.1.0-BwC0iBVtNveBsnlHupUq/dist=es2019,mode=imports/optimized/fluture-sanctuary-types.js": "e20fbbfc733bcba11cd3eb555a70e78795e5e56ed72700d5ee074f664638f26a",
+    "https://cdn.skypack.dev/-/fluture-sanctuary-types@v7.1.0-BwC0iBVtNveBsnlHupUq/dist=es2019,mode=types/index.d.ts": "ed057a7eab98cd4acfd60e776b573ff802da6be985256a30fca4dbc56878bef0",
+    "https://cdn.skypack.dev/-/fluture@v14.0.0-cc6RnYnyoQbTkFRftUyz/dist=es2019,mode=imports/optimized/common/seq-48151835.js": "fa12bce521ad99c5c9302e0f24bed742460467a7cf3ab38f91ab163276e13594",
+    "https://cdn.skypack.dev/-/fluture@v14.0.0-cc6RnYnyoQbTkFRftUyz/dist=es2019,mode=imports/optimized/common/swap-7f08f708.js": "fed36a2018135bd917c36a0343d9e01075780749caba0e8f5327680e745957a5",
+    "https://cdn.skypack.dev/-/fluture@v14.0.0-cc6RnYnyoQbTkFRftUyz/dist=es2019,mode=imports/optimized/fluture.js": "f432f93461a584f6fde67bd9593a0aaba2fedf59bb51b120d57435a273336d47",
+    "https://cdn.skypack.dev/-/fluture@v14.0.0-cc6RnYnyoQbTkFRftUyz/dist=es2019,mode=imports/optimized/fluture/index.js": "f2e1fee745d0c8c29e4a250e08c381d954d08962cadad25a1af252ffc6a31048",
+    "https://cdn.skypack.dev/-/sanctuary-def@v0.22.0-jaVfKy1mdjA6ZpKb87uG/dist=es2019,mode=imports/optimized/sanctuary-def.js": "0ae62481f6eb4342b584dbd7064d4ba5e029cda484971c7d4eb427c2023824b2",
+    "https://cdn.skypack.dev/-/sanctuary-either@v2.1.0-ZjZ19tA64tgOFwbx2Vlb/dist=es2019,mode=imports/optimized/sanctuary-either.js": "9441883ba27cdd66ab6cf62e54abb8254a5ff3ca645fcba422fa2f0f3780ecf0",
+    "https://cdn.skypack.dev/-/sanctuary-maybe@v2.1.0-N4ZJ0cKIR5RXbkrNQKEk/dist=es2019,mode=imports/optimized/sanctuary-maybe.js": "2cbdd3f4239ef98b0c0d5beb492866fb8353266da33160ffc7079338e7110a3f",
+    "https://cdn.skypack.dev/-/sanctuary-pair@v2.1.0-p7adbIyP8mDBeVzgqqkF/dist=es2019,mode=imports/optimized/sanctuary-pair.js": "9815f46f58c6a6212cb0d18c18710717e26563fadcb209f287d78a0a740129a9",
+    "https://cdn.skypack.dev/-/sanctuary-show@v2.0.0-CslS6PHedkWAAh8kuA9z/dist=es2019,mode=imports/optimized/sanctuary-show.js": "21b8c45435d55caa598e9c787d835f8785f1b673b328f7a2ceb2ed80dbe37dcb",
+    "https://cdn.skypack.dev/-/sanctuary-type-classes@v12.1.0-Ru2Je9YdGEWiWehc5tzs/dist=es2019,mode=imports/optimized/sanctuary-type-classes.js": "9b85607f4849018d64490d9832036f6853479f249090be166e90daeaf6b51581",
+    "https://cdn.skypack.dev/-/sanctuary-type-identifiers@v3.0.0-fxixUrlgwRXsKVqyFrl3/dist=es2019,mode=imports/optimized/sanctuary-type-identifiers.js": "8d0afa7dc8cad6dcc1fc5f6a25b19fbb642c4696c1be7c3f7280385787c0fb46",
+    "https://cdn.skypack.dev/-/sanctuary@v3.1.0-yvUv2YUubSPIiWvZhy1c/dist=es2019,mode=imports/optimized/sanctuary.js": "31167ade43e03d1588715ce4a9c640e2f384b7ffb76a4264fdb89c3b9a6495f9",
+    "https://cdn.skypack.dev/-/sanctuary@v3.1.0-yvUv2YUubSPIiWvZhy1c/dist=es2019,mode=types/index.d.ts": "4b5b2f0132bb108992908e4a43783bb58156c7607f1e9eb6d3f91a707d075294",
+    "https://cdn.skypack.dev/fluture-sanctuary-types@7.1.0?dts": "a6f0eb1ac7a630789406714b5a89a97cb4724bb610d88db6686b9f3413e03b13",
+    "https://cdn.skypack.dev/sanctuary-def@0.22.0?dts": "e02ed59f007b71e3d6172494f7688a881e440f6bf5a8811997efe8d448a43ca1",
+    "https://cdn.skypack.dev/sanctuary@3.1.0?dts": "a2f41c50ee2542e3795520e5e42941468048197c6d0902d11f270f2ed4946f63",
+    "https://deno.land/std@0.186.0/fmt/colors.ts": "d67e3cd9f472535241a8e410d33423980bec45047e343577554d3356e1f0ef4e",
+    "https://deno.land/std@0.186.0/testing/_diff.ts": "1a3c044aedf77647d6cac86b798c6417603361b66b54c53331b312caeb447aea",
+    "https://deno.land/std@0.186.0/testing/_format.ts": "a69126e8a469009adf4cf2a50af889aca364c349797e63174884a52ff75cf4c7",
+    "https://deno.land/std@0.186.0/testing/asserts.ts": "e16d98b4d73ffc4ed498d717307a12500ae4f2cbe668f1a215632d19fcffc22f"
+  }
+}

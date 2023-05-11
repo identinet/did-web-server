@@ -1,0 +1,30 @@
+# Documentation: https://just.systems/man/en/
+# Documentation: https://www.nushell.sh/book/
+
+set shell := ["nu", "-c"]
+
+# Display this help
+help:
+    @just -l
+
+# Lint source files
+lint:
+    @deno lint
+
+# Run tests
+test:
+    @deno test
+
+# Re-run tests upon change
+test-watch:
+    @deno test --watch
+
+# Run tests and print the code coverage report
+coverage:
+    @rm -rf cov_profile
+    @deno test --coverage=cov_profile
+    @deno coverage cov_profile
+
+# Format source files
+format:
+    @deno fmt
