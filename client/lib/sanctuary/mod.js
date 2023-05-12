@@ -9,7 +9,6 @@ import {
 import { PromiseType } from "./types/PromiseType.js";
 import { URLType } from "./types/URLType.js";
 import { ResponseType } from "./types/ResponseType.js";
-import { NonZeroPortNumber, PortNumber } from "./types/PortNumber.js";
 
 // TODO: add a simple function interface for adding / registering new types
 
@@ -17,8 +16,6 @@ const additionalTypes = [
   ResponseType,
   PromiseType,
   URLType,
-  PortNumber,
-  NonZeroPortNumber,
   ...flutureEnv,
 ];
 

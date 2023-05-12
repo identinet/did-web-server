@@ -1,15 +1,15 @@
 import * as vc from "@digitalbazaar/vc";
 import { stringToDID } from "./did.js";
-import { validUntil, VC_LD_TEMPLATE, withClaim } from "./vc_ld.js";
+import { validUntil, VC_LD_TEMPLATE, withClaim } from "../vc/vc_ld.js";
 
 /**
- * createDID registers a new DID on a compatible did-web-server.
+ * create registers a new DID on a compatible did-web-server.
  *
  * @param {Ed25519Signature2020} suite - Cryptographic signature suite that is used to represent the user in requests made to the server. For more details on the signature suite, see https://www.w3.org/community/reports/credentials/CG-FINAL-di-eddsa-2020-20220724/
  * @param {object} diddoc - DID document following the did:web DID method. For more details on allowed values, see https://w3c.github.io/did-core/
  * @returns {Promise<object>} Resolves to the registered DID document or rejects with an error message.
  */
-export function createDID(suite, diddoc) {
+export function create(suite, diddoc) {
   // TODO: implementation
   // 1. put the DID document in a VC and sign it with the owner's private key
   createVCfromDiddoc(suite, diddoc);
@@ -23,32 +23,25 @@ export function createDID(suite, diddoc) {
 }
 
 /**
- * updateDID updates an existing DID on a compatible did-web-server.
+ * update updates an existing DID on a compatible did-web-server.
  *
  * @param {Ed25519Signature2020} suite - Cryptographic signature suite that is used to represent the user in requests made to the server. For more details on the signature suite, see https://www.w3.org/community/reports/credentials/CG-FINAL-di-eddsa-2020-20220724/.
  * @param {object} diddoc - DID document following the did:web DID method. For more details on allowed values, see https://w3c.github.io/did-core/.
  * @returns {Promise<object>} Resolves to the updated DID document or rejects with an error message.
  */
-export function updateDID(suite, diddoc) {
+export function update(suite, diddoc) {
   // TODO: implementation
-  updateDID;
+  update;
 }
 
 /**
- * deactivateDID deletes an existing DID on a compatible did-web-server.
+ * deactivate deletes an existing DID on a compatible did-web-server.
  *
  * @param {Ed25519Signature2020} suite - Cryptographic signature suite that is used to represent the user in requests made to the server. For more details on the signature suite, see https://www.w3.org/community/reports/credentials/CG-FINAL-di-eddsa-2020-20220724/.
  * @param {String} did - DID following the did:web DID method.
  * @returns {Promise<String>} Resolves to the DID that has been deleted or rejects with an error message.
- *
- * # Examples
- *
- * ```js
- * const x = 1;
- * x == 2;
- * ```
  */
-export function deactivateDID(suite, did) {
+export function deactivate(suite, did) {
   // TODO: implementation
   // 1. create a VP with a simple VC that just points to the DID
   const DID = stringToDID(did);
@@ -70,7 +63,7 @@ export function deactivateDID(suite, did) {
   presentation = withHolder(presentation, signedCredential);
   const payload = vp.issue(presentation, challenge = proofParameters);
   // 1. send request
-  modifyDID(DID, DID_CRUD_OPERATIONS.delete, payload);
+  modify(DID, DID_CRUD_OPERATIONS.delete, payload);
 }
 
 /**
@@ -86,7 +79,7 @@ const DID_CRUD_OPERATIONS = {
 };
 
 /**
- * modifyDID peforms a CRUD operation on a did:web DID.
+ * modify peforms a CRUD operation on a did:web DID.
  *
  * @param {DIDWeb} did - did:web DID.
  * @param {String} operation - CRUD operation performed on the DID - see @link DID_CRUD_OPERATIONS.
@@ -94,7 +87,7 @@ const DID_CRUD_OPERATIONS = {
  * @returns {Promise<Response>} Resolves to an HTTP result object (attention, the result object might still represent an
  * error state, e.g. HTTP 401 - not allowed) or rejects with an error message.
  */
-function modifyDID(did, operation, payload) {
+function modify(did, operation, payload) {
   // TODO: implementation
   // 1. build URL
   // 1. verify operation

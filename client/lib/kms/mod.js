@@ -1,4 +1,4 @@
-import { $, S } from "./sanctuary.js";
+import { $, S } from "../sanctuary/mod.js";
 import { PrivateKey, PublicKey } from "./types/JWK.js";
 
 /** takeKeys :: Object -> Array String -> Maybe Object

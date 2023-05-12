@@ -1,4 +1,4 @@
-import { $, S } from "./sanctuary.js";
+import { $, S } from "../sanctuary/mod.js";
 import { DIDWeb } from "./types/DIDWeb.js";
 import { NonZeroPortNumber } from "./types/PortNumber.js";
 

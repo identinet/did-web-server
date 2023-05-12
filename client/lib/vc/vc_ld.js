@@ -1,4 +1,4 @@
-import { $, S } from "./sanctuary.js";
+import { $, S } from "../sanctuary/mod.js";
 
 /**
  * A Verifiable Credential that can be enhanced with addtional functions from this module.
