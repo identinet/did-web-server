@@ -3,6 +3,53 @@ import { DIDWeb } from "./types/DIDWeb.js";
 import { NonZeroPortNumber } from "./types/PortNumber.js";
 
 /**
+ * DID CRUD operations for modifying did:web DIDs.
+ * @typedef DID_CRUD_OPERATIONS
+ * @type {object}
+ */
+export const DID_CRUD_OPERATIONS = {
+  "read": "GET",
+  "create": "POST",
+  "update": "PUT",
+  "deactivate": "DELETE",
+};
+
+/**
+ * HTTP_METHOD list of supported HTTP method names.
+ */
+const HTTP_METHOD = $.EnumType("HTTP_METHOD")(
+  "https://github.com/identinet/identinet/types#HTTP_METHOD",
+)(["GET", "POST", "PUT", "DELETE"]);
+
+/**
+ * buildRequest prepares a request that performs a CRUD operation on a did:web DID.
+ *
+ * @param {DIDWeb} did - did:web DID.
+ * @param {String} operation - CRUD operation performed on the DID - see @link DID_CRUD_OPERATIONS.
+ * @param {object} payload - Payload that's required to perform the opeations. See did-web-server protocol for more details.
+ * @returns {Request} Returns either an HTTP request that can be passed to `fetch()` or an error message. The request always uses HTTPS unless the DID's domain is `localhost`.
+ * @throws Throws exception if types aren't correct.
+ */
+export const buildRequest = S.def("buildRequest")({})([
+  HTTP_METHOD,
+  $.Unknown,
+  DIDWeb,
+  $.Request,
+])(
+  (operation) => (payload) => (did) => {
+    const schema = did.domain === "localhost" ? "http" : "https";
+    const path = did.path.length === 0
+      ? ".well-known"
+      : S.joinWith("/")(did.path);
+    const url = `${schema}://${did.domain}:${did.port}/${path}/did.json`;
+    return new Request(url, {
+      method: operation,
+      body: JSON.stringify(payload),
+    });
+  },
+);
+
+/**
  * stringToDIDWeb transforms a string into a DID.
  * @param {string} did - String that contains a DID.
  * @returns {Either<string,DIDWeb>} returns the DID object or an error message.

@@ -1,5 +1,5 @@
 import * as vc from "@digitalbazaar/vc";
-import { stringToDID } from "./did.js";
+import { buildRequest, stringToDID } from "./did.js";
 import { validUntil, VC_LD_TEMPLATE, withClaim } from "../vc/vc_ld.js";
 
 /**
@@ -63,34 +63,5 @@ export function deactivate(suite, did) {
   presentation = withHolder(presentation, signedCredential);
   const payload = vp.issue(presentation, challenge = proofParameters);
   // 1. send request
-  modify(DID, DID_CRUD_OPERATIONS.delete, payload);
-}
-
-/**
- * DID CRUD operations for modifying did:web DIDs.
- * @typedef DID_CRUD_OPERATIONS
- * @type {object}
- */
-const DID_CRUD_OPERATIONS = {
-  "read": "GET",
-  "create": "POST",
-  "update": "PUT",
-  "deactivate": "DELETE",
-};
-
-/**
- * modify peforms a CRUD operation on a did:web DID.
- *
- * @param {DIDWeb} did - did:web DID.
- * @param {String} operation - CRUD operation performed on the DID - see @link DID_CRUD_OPERATIONS.
- * @param {object} payload - Payload that's required to perform the opeations. See did-web-server protocol for more details.
- * @returns {Promise<Response>} Resolves to an HTTP result object (attention, the result object might still represent an
- * error state, e.g. HTTP 401 - not allowed) or rejects with an error message.
- */
-function modify(did, operation, payload) {
-  // TODO: implementation
-  // 1. build URL
-  // 1. verify operation
-  // 2. send request
-  // 3. return result
+  buildRequest(DID_CRUD_OPERATIONS.delete)(payload)(DID);
 }
