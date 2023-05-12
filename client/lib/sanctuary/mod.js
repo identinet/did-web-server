@@ -8,11 +8,15 @@ import {
 
 import { PromiseType } from "./types/PromiseType.js";
 import { URLType } from "./types/URLType.js";
+import { RequestType } from "./types/RequestType.js";
 import { ResponseType } from "./types/ResponseType.js";
+
+export { log } from "./utils.js";
 
 // TODO: add a simple function interface for adding / registering new types
 
 const additionalTypes = [
+  RequestType,
   ResponseType,
   PromiseType,
   URLType,
@@ -40,6 +44,12 @@ const $ = { ...dollar };
 S.map(([name, fn]) => $[name] = fn)([
   ["Future", FutureType],
   ["ConcurrentFuture", ConcurrentFutureType],
+]);
+S.map(([name, type]) => $[name] = type)([
+  ["Request", RequestType],
+  ["Response", ResponseType],
+  ["Promise", PromiseType],
+  ["URL", URLType],
 ]);
 
 export { $, def, S };
