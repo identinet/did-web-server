@@ -1,7 +1,11 @@
 // Documentation: https://deno.land/manual@v1.33.1/getting_started/configuration_file
 {
   "importMap": "import_map.json",
-  "tasks": {},
+  "tasks": {
+    "esm:add": "deno run -A https://esm.sh/v121 add",
+    "esm:update": "deno run -A https://esm.sh/v121 update",
+    "esm:remove": "deno run -A https://esm.sh/v121 remove"
+  },
   "fmt": {
     "lineWidth": 120
   }
