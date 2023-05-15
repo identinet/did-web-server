@@ -22,10 +22,9 @@ generate-owner-key:
 # Continuously run and build application for development purposes
 dev: install generate-owner-key
     #!/usr/bin/env nu
-    $env.DID_SERVER_BACKEND = file
-    $env.DID_SERVER_OWNER = didkit key-to-did -k owner.jwk
-    $env.DID_SERVER_PORT = 8000
-    $env.RUSTC_WRAPPER = (which sccache)
+    let-env DID_SERVER_BACKEND = file
+    let-env DID_SERVER_OWNER = (didkit key-to-did -k owner.jwk)
+    let-env DID_SERVER_PORT = 8000
     cargo watch -w src -x run
 
 # Run universal-resolver and did-web-resolver with did-web-server in docker
@@ -46,7 +45,7 @@ build: test
 
 # Build debug version of application
 dev-build: install
-    $env.RUSTC_WRAPPER=(which sccache | get path.0); cargo build
+    cargo build
 
 # Docker build
 docker-build:
