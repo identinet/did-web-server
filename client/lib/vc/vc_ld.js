@@ -11,7 +11,7 @@ import { $, S } from "../sanctuary/mod.js";
  */
 export const VC_LD_TEMPLATE = {
   "@context": [
-    "https://www.w3.org/ns/credentials/v2",
+    "https://www.w3.org/2018/credentials/v1",
   ],
   // "id": "TO_BE_DEFINED",
   "type": ["VerifiableCredential"],
@@ -32,8 +32,8 @@ export const VC_LD_TEMPLATE = {
  * @param {Credential} credential - A credential object.
  * @param {string} property - A property name.
  * @param {any} value - The value that's appended to the property.
+ *
  * @returns {Credential} Updated credential.
- * @throws Throws exception if types aren't correct.
  */
 export const setProperty = S.def("setProperty")({})([
   $.Object,
@@ -55,8 +55,8 @@ export const setProperty = S.def("setProperty")({})([
  * @param {Credential} credential - A credential object.
  * @param {string} property - A property name.
  * @param {any} value - The value that's appended to the property.
+ *
  * @returns {Credential} Updated credential.
- * @throws Throws exception if types aren't correct.
  */
 export const appendProperty = S.def("appendProperty")({})([
   $.Object,
@@ -82,8 +82,8 @@ export const appendProperty = S.def("appendProperty")({})([
  *
  * @param {Credential} credential - A credential object.
  * @param {string} id - ID for the credential.
+ *
  * @returns {Credential} Updated credential.
- * @throws Throws exception if types aren't correct.
  */
 export function withId(credential, id) {
   return setProperty(credential)("id")(id);
@@ -94,8 +94,8 @@ export function withId(credential, id) {
  *
  * @param {Credential} credential - A credential object.
  * @param {Date} date - Date until the credential will be valid.
+ *
  * @returns {Credential} Updated credential.
- * @throws Throws exception if types aren't correct.
  */
 export function validUntil(credential, date) {
   if (!S.is($.ValidDate)(date)) {
@@ -111,8 +111,8 @@ export function validUntil(credential, date) {
  *
  * @param {Credential} credential - A credential object.
  * @param {object} claim - Claim that will be added to the credential.
+ *
  * @returns {Credential} Updated credential.
- * @throws Throws exception if types aren't correct.
  */
 export function withClaim(credential, claim) {
   return appendProperty(credential)("credentialSubject")(claim);
@@ -123,8 +123,8 @@ export function withClaim(credential, claim) {
  *
  * @param {Credential} credential - A credential object.
  * @param {(string|object)} context - A JSON-LD context.
+ *
  * @returns {Credential} Updated credential.
- * @throws Throws exception if types aren't correct.
  */
 export function withContext(credential, context) {
   return appendProperty(credential)("@context")(context);
@@ -135,8 +135,8 @@ export function withContext(credential, context) {
  *
  * @param {Credential} credential - A credential object.
  * @param {string} type - A JSON-LD type. Make sure the corresponding context has been added via @link withContext.
+ *
  * @returns {Credential} Updated credential.
- * @throws Throws exception if types aren't correct.
  */
 export function withType(credential, type) {
   return appendProperty(credential)("type")(type);

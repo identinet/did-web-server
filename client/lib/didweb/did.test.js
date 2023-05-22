@@ -1,34 +1,33 @@
-import { $, log, S } from "../sanctuary/mod.js";
+import { S } from "../sanctuary/mod.js";
 import {
   assert,
   assertEquals,
   assertStrictEquals,
+  assertThrows,
 } from "std/testing/asserts.ts";
-import { buildRequest, DID_CRUD_OPERATIONS, stringToDIDWeb } from "./did.js";
+import {
+  buildDIDRequest,
+  did2StructuredDID,
+  DID_CRUD_OPERATIONS,
+} from "./did.js";
 
-Deno.test("stringToDIDWeb", () => {
-  const did = stringToDIDWeb("");
-  assert(
-    S.isLeft(did),
-    "When an empty string is passed, then an error is returned.",
+Deno.test("didToDIDWeb", () => {
+  assertThrows(
+    () => did2StructuredDID(""),
+    "When an empty string is passed, then an error is thrown.",
   );
 });
 
-Deno.test("stringToDIDWeb", () => {
-  const did1 = stringToDIDWeb("did:webX:example.org");
-  const did2 = stringToDIDWeb("did:webX:example.org");
+Deno.test("didToDIDWeb", () => {
+  const did1 = did2StructuredDID("did:webx:example.org");
   assert(
     S.isLeft(did1),
     "When DID doesn't start with did:web, then an error is returned.",
   );
-  assert(
-    S.isLeft(did2),
-    "When DID doesn't start with did:web, then an error is returned.",
-  );
 });
 
-Deno.test("stringToDIDWeb", () => {
-  const did = stringToDIDWeb("did:web:example.org");
+Deno.test("didToDIDWeb", () => {
+  const did = did2StructuredDID("did:web:example.org");
   assertStrictEquals(
     S.either(() => false)((did) => did.domain)(did),
     "example.org",
@@ -41,16 +40,16 @@ Deno.test("stringToDIDWeb", () => {
   );
 });
 
-Deno.test("stringToDIDWeb", () => {
-  const did = stringToDIDWeb("did:web:example.org%3Aa10");
+Deno.test("didToDIDWeb", () => {
+  const did = did2StructuredDID("did:web:example.org%3Aa10");
   assert(
     S.isLeft(did),
     "When an invalid port number is provided, then an error is returned.",
   );
 });
 
-Deno.test("stringToDIDWeb", () => {
-  const did = stringToDIDWeb("did:web:example.org%3A1024");
+Deno.test("didToDIDWeb", () => {
+  const did = did2StructuredDID("did:web:example.org%3A1024");
   assertStrictEquals(
     S.either(() => false)((did) => did.port)(did),
     1024,
@@ -58,8 +57,8 @@ Deno.test("stringToDIDWeb", () => {
   );
 });
 
-Deno.test("stringToDIDWeb", () => {
-  const did = stringToDIDWeb("did:web:example.org%3A1024:user:test%3A");
+Deno.test("didToDIDWeb", () => {
+  const did = did2StructuredDID("did:web:example.org%3A1024:user:test%3A");
   assertEquals(
     S.either(() => false)((did) => did.path)(did),
     ["user", "test:"],
@@ -71,10 +70,7 @@ Deno.test("buildRequest", () => {
   const did = "did:web:example.org%3A1024:user:test";
   const operation = DID_CRUD_OPERATIONS.deactivate;
   const payload = {};
-  const req = S.pipe([
-    stringToDIDWeb,
-    S.map(buildRequest(operation)(payload)),
-  ])(did);
+  const req = buildDIDRequest(operation)(payload)(did);
   assertEquals(
     S.either(() => false)((req) => req.url)(req),
     "https://example.org:1024/user/test/did.json",
@@ -91,10 +87,7 @@ Deno.test("buildRequest", () => {
   const did = "did:web:localhost%3A1024:user:test";
   const operation = DID_CRUD_OPERATIONS.deactivate;
   const payload = {};
-  const req = S.pipe([
-    stringToDIDWeb,
-    S.map(buildRequest(operation)(payload)),
-  ])(did);
+  const req = buildDIDRequest(operation)(payload)(did);
   assertEquals(
     S.either(() => false)((req) => req.url)(req),
     "http://localhost:1024/user/test/did.json",
@@ -106,10 +99,7 @@ Deno.test("buildRequest", () => {
   const did = "did:web:example.org";
   const operation = DID_CRUD_OPERATIONS.deactivate;
   const payload = {};
-  const req = S.pipe([
-    stringToDIDWeb,
-    S.map(buildRequest(operation)(payload)),
-  ])(did);
+  const req = buildDIDRequest(operation)(payload)(did);
   assertEquals(
     S.either(() => false)((req) => req.url)(req),
     "https://example.org/.well-known/did.json",

@@ -1,9 +1,12 @@
 import { $, S } from "../sanctuary/mod.js";
-import { DIDWeb } from "./types/DIDWeb.js";
+import { attemptP, encaseP, reject, resolve } from "fluture";
+import { StructuredDID } from "./types/StructuredDID.js";
+import { DID } from "./types/DID.js";
 import { NonZeroPortNumber } from "./types/PortNumber.js";
 
 /**
  * DID CRUD operations for modifying did:web DIDs.
+ *
  * @typedef DID_CRUD_OPERATIONS
  * @type {object}
  */
@@ -15,268 +18,152 @@ export const DID_CRUD_OPERATIONS = {
 };
 
 /**
- * HTTP_METHOD list of supported HTTP method names.
+ * HTTP_METHODS list of supported HTTP method names.
  */
-const HTTP_METHOD = $.EnumType("HTTP_METHOD")(
-  "https://github.com/identinet/identinet/types#HTTP_METHOD",
+const HTTP_METHODS = $.EnumType("HTTP_METHODS")(
+  "https://github.com/identinet/identinet/types#HTTP_METHODS",
 )(["GET", "POST", "PUT", "DELETE"]);
 
 /**
- * buildRequest prepares a request that performs a CRUD operation on a did:web DID.
+ * id2DID computes a did:web DID for a domain name and an id.
  *
- * @param {DIDWeb} did - did:web DID.
- * @param {String} operation - CRUD operation performed on the DID - see @link DID_CRUD_OPERATIONS.
- * @param {object} payload - Payload that's required to perform the opeations. See did-web-server protocol for more details.
- * @returns {Request} Returns either an HTTP request that can be passed to `fetch()` or an error message. The request always uses HTTPS unless the DID's domain is `localhost`.
+ * @param {string} domain - Valid DNS domain name with optional port separated by a colon, e.g. localhost:3000.
+ * @param {string} id - account id. Though the id is optional for did:web, it's required here.
+ *
  * @throws Throws exception if types aren't correct.
+ *
+ * @returns {DID} returns encoded did:web DID.
  */
-export const buildRequest = S.def("buildRequest")({})([
-  HTTP_METHOD,
-  $.Unknown,
-  DIDWeb,
-  $.Request,
+export const id2DID = S.def("id2DID")({})([
+  $.NonEmpty($.String),
+  $.NonEmpty($.String),
+  DID,
 ])(
-  (operation) => (payload) => (did) => {
-    const schema = did.domain === "localhost" ? "http" : "https";
-    const path = did.path.length === 0
-      ? ".well-known"
-      : S.joinWith("/")(did.path);
-    const url = `${schema}://${did.domain}:${did.port}/${path}/did.json`;
-    return new Request(url, {
-      method: operation,
-      body: JSON.stringify(payload),
-    });
-  },
+  (domain) => (id) =>
+    `did:web:${encodeURIComponent(domain)}:${
+      id.split("/").map(encodeURIComponent).join(":")
+    }`,
 );
 
 /**
- * stringToDIDWeb transforms a string into a DID.
- * @param {string} did - String that contains a DID.
- * @returns {Either<string,DIDWeb>} returns the DID object or an error message.
+ * did2StructuredDID transforms a DID URL into a StructuredDID object.
+ *
+ * @param {DID} did - DID URL string.
+ *
+ * @returns {Either<Error,StructuredDID>} returns the DID object or an error message.
  */
-export const stringToDIDWeb = S.def("stringToDID")({})([
-  $.String,
-  $.Either($.String)(DIDWeb),
+export const did2StructuredDID = S.def("did2StructuredDID")({})([
+  DID,
+  $.Either($.Error)(StructuredDID),
 ])(
   (did) => {
-    const DID = {};
+    const structuredDID = {};
     const elements = S.splitOn(":")(did);
     if (elements.length < 3 || elements[0] !== "did" || elements[1] !== "web") {
-      return S.Left("Provided string is not a did:web DID.");
+      return S.Left(new Error("Provided string is not a did:web DID."));
     }
-    DID.name = elements[1];
+    structuredDID.name = elements[1];
     const [domain, port] = S.pipe([decodeURIComponent, S.splitOn(":")])(
       elements[2],
     );
-    DID.domain = domain;
+    structuredDID.domain = domain;
     if (S.type(port).name !== "Undefined") {
       const portNumber = S.maybeToNullable(S.parseInt(10)(port));
       if (!S.is(NonZeroPortNumber)(portNumber)) {
-        return S.Left("Provided port number is not valid.");
+        return S.Left(new Error("Provided port number is not valid."));
       }
-      DID.port = portNumber;
+      structuredDID.port = portNumber;
     } else {
-      DID.port = 443;
+      structuredDID.port = 443;
     }
-    DID.path = S.map(decodeURIComponent)(elements.slice(3));
-    return S.Right(DID);
+    structuredDID.path = S.map(decodeURIComponent)(elements.slice(3));
+    return S.Right(structuredDID);
   },
 );
 
-/* DIDDocument is a builder class for DID Documents
- */
-export class DIDDocument {
-  #builder = [];
-  constructor() {
-    this.withContext("https://www.w3.org/ns/did/v1");
-  }
-  #setProperty(property, value) {
-    return (object) => {
-      if (typeof value !== "undefined") {
-        object[property] = value;
-      }
-      return object;
-    };
-  }
-  #appendProperty(property, value) {
-    return (object) => {
-      if (typeof value !== "undefined") {
-        if (!object[property]) {
-          object[property] = [];
-        }
-        object[property].push(value);
-      }
-      return object;
-    };
-  }
-
-  withContext(context) {
-    this.#builder.push(this.#appendProperty("context", context));
-    return this;
-  }
-  withSubject(subject) {
-    this.#builder.push(this.#setProperty("id", subject));
-    return this;
-  }
-  withController(controller) {
-    this.#builder.push(this.#setProperty("controller", controller));
-    return this;
-  }
-  withAuthentication(authentication) {
-    this.#builder.push(this.#appendProperty("authentication", authentication));
-    return this;
-  }
-  withAssertionMethod(assertionMethod) {
-    this.#builder.push(
-      this.#appendProperty("assertionMethod", assertionMethod),
-    );
-    return this;
-  }
-  withKeyAgreement(keyAgreement) {
-    this.#builder.push(
-      this.#appendProperty("keyAgreement", keyAgreement),
-    );
-    return this;
-  }
-  withCapabilityInvocation(capabilityInvocation) {
-    this.#builder.push(
-      this.#appendProperty("capabilityInvocation", capabilityInvocation),
-    );
-    return this;
-  }
-  withCapabilityDelegation(capabilityDelegation) {
-    this.#builder.push(
-      this.#appendProperty("capabilityDelegation", capabilityDelegation),
-    );
-    return this;
-  }
-  withVerificationMethod(
-    { id, type, controller, publicKeyJwk, publicKeyMultibase },
-  ) {
-    const verificationMethod = [
-      this.#setProperty("controller", controller),
-      this.#setProperty("publicKeyJwk", publicKeyJwk),
-      (object) => {
-        if (typeof publicKeyJwk !== "undefined") {
-          return object;
-        }
-        return this.#setProperty("publicKeyMultibase", publicKeyMultibase)(
-          object,
-        );
-      },
-    ].reduce((acc, fn) => fn(acc), { id, type });
-    this.#builder.push(
-      this.#appendProperty("verificationMethod", verificationMethod),
-    );
-    return this;
-  }
-
-  renderLD() {
-    return this.#builder.reduce((acc, fn) => fn(acc), {});
-  }
-}
-
-/** Define a custom type for DID strings, see https://w3c.github.io/did-core/#did-syntax
+/**
+ * did2URL turns a structured DID into an URL for interacting with the DID document.
  *
- * @type {string}
+ * @param {DID} did - a valid did:web DID, see https://w3c-ccg.github.io/did-method-web/.
  *
- * Tests:
- * S.is(DID)("did:web:example.com")
- * true
- * S.is(DID)("did:web:example.com:joe")
- * true
- * S.is(DID)("did:web:example.com:john:doe")
- * true
- * S.is(DID)("did:WEB:example.com")
- * false
+ * @throws Throws exception if types aren't correct.
+ *
+ * @returns {Either<Error,URL>} Returns the URL to resolve the DID document.
  */
-export const DID = $.NullaryType("DID")(
-  "https://github.com/identinet/identinet/types#DID",
-)([])((x) =>
-  typeof x === "string" && /^did:[a-z0-9]+:[a-zA-Z0-9_.:%-]+$/.test(x)
+const did2URL = S.def("did2URL")({})([
+  DID,
+  $.Either($.Error)($.URL),
+])(
+  S.pipe([
+    did2StructuredDID,
+    S.map((did) => {
+      const schema = did.domain === "localhost" ? "http" : "https";
+      const path = did.path.length === 0
+        ? ".well-known"
+        : S.joinWith("/")(did.path);
+      return `${schema}://${did.domain}:${did.port}/${path}/did.json`;
+    }),
+    S.chain((url) => {
+      try {
+        return S.Right(new URL(url));
+      } catch (err) {
+        return S.Left(err);
+      }
+    }),
+  ]),
 );
 
-/** Define a custom type for the Service structure, see https://w3c.github.io/did-core/#services
+/**
+ * fetchProofParameters returns proof parameters/challenge for modifying a DID.
  *
- * @typedef {object} PlainOrSetType
- */
-export const PlainOrSetType = (type) =>
-  $.NullaryType("PlainOrSetType")(
-    "https://github.com/identinet/identinet/types#PlainOrSetType",
-  )([])(
-    (x) => S.is(type)(x) || S.is($.Array(type))(x),
-  );
-
-/** Define a custom type for the Service structure, see https://w3c.github.io/did-core/#services
+ * @param {DID} did - a valid did:web DID, see https://w4c-ccg.github.io/did-method-web/.
  *
- * @typedef {object} PlainSetOrMapType
- * for (
- *   const [value, expectedResult] of [
- *     ["string", true],
- *     [["string"], true],
- *     [[], true],
- *     [{ a: "string" }, true],
- *     [{}, true],
- *     [{ a: 1 }, false],
- *     [[1], false],
- *   ]
- * ) {
- *   const result = S.is(PlainSetOrMapType)(value);
- *   if (result != expectedResult) {
- *     console.log(
- *       `Test StringOrSetOfStrings for '${value}'. Expected result: ${expectedResult}. Actual result: ${result}`,
- *     );
- *   }
- * }
- */
-export const PlainSetOrMapType = (type) =>
-  $.NullaryType(
-    "PlainSetOrMapType",
-  )(
-    "https://github.com/identinet/identinet/types#PlainSetOrMapType",
-  )([])(
-    (x) =>
-      S.is(type)(x) || S.is($.Array(type))(x) ||
-      S.is($.StrMap(type))(x),
-  );
-
-/** Define a custom type for the Service structure, see https://w3c.github.io/did-core/#services
+ * @throws Throws exception if types aren't correct.
  *
- * @typedef {object} Service
- * @property {URI} id - The ID of the service.
- * @property {String} type - The type of the verification method.
- * @property {String} serviceEndpoint - The type of the verification method.
+ * @returns {Future<Error,string>} Returns proof parameters/challenge or rejects with an error message.
  */
-export const Service = $.NamedRecordType("Service")(
-  "https://github.com/identinet/identinet/types#Service",
-)([])({
-  id: DID,
-  type: PlainOrSetType($.String),
-  // TODO: change this to URI type
-  serviceEndpoint: PlainSetOrMapType($.String),
-});
+export const fetchProofParameters = S.def("fetchProofParameters")({})([
+  DID,
+  $.Future($.Error)($.String),
+])(
+  S.pipe([
+    // build URL
+    did2URL,
+    S.map((url) => new URL("?proofParameters", url)),
+    S.either((msg) => reject(new Error(msg)))(resolve),
+    // retrieve result
+    S.chain(encaseP(fetch)),
+    // I might have to use F.chain for an unknown reason
+    S.chain((response) => {
+      return response.ok
+        ? attemptP(() => response.text())
+        : reject(response.statusText);
+    }),
+  ]),
+);
 
 /**
- * @typedef {object} DIDDocument2
- * @property {String} id - The ID of the verification method.
- * @property {String} type - The type of the verification method.
- * @property {String} controller - The DID that controls the verification method.
+ * buildDIDRequest prepares a request that performs a CRUD operation on a did:web DID.
+ *
+ * @param {string} operation - CRUD operation performed on the DID - see @link DID_CRUD_OPERATIONS.
+ * @param {object} payload - Payload that's required to perform the opeations. See did-web-server protocol for more details.
+ * @param {DID} did - did:web DID.
+ *
+ * @throws Throws exception if types aren't correct.
+ *
+ * @returns {Either<string,Request>} Returns either an HTTP request that can be passed to `fetch()` or an error message. The request always uses HTTPS unless the DID's domain is `localhost`.
  */
-export const DIDDocument2 = $.NamedRecordType("DIDDocument")(
-  "https://github.com/identinet/identinet/types#DIDDocument",
-)([])({
-  crv: $.NonEmpty($.String),
-  kty: $.NonEmpty($.String),
-  x: $.NonEmpty($.String),
-});
-
-export const didDocToVC = (ownerDID) => (diddoc) => {
-  const diddocLD = diddoc.renderLD();
-  return {
-    "@context": ["https://www.w3.org/2018/credentials/v1"],
-    type: ["VerifiableCredential"],
-    id: diddocLD.id,
-    credentialSubject: { ...diddocLD },
-    issuer: ownerDID,
-  };
-};
+export const buildDIDRequest = S.def("buildDIDRequest")({})([
+  HTTP_METHODS,
+  $.Unknown,
+  DID,
+  $.Either($.String)($.Request),
+])(
+  (operation) => (payload) =>
+    S.pipe([
+      did2URL,
+      S.map((url) =>
+        new Request(url, { method: operation, body: JSON.stringify(payload) })
+      ),
+    ]),
+);

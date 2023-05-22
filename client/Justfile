@@ -13,16 +13,16 @@ lint:
 
 # Run tests
 test:
-    @deno test
+    @deno test --allow-read --allow-env
 
 # Re-run tests upon change
 test-watch:
-    @deno test --watch
+    @deno test --allow-read --allow-env --watch
 
 # Run tests and print the code coverage report
 coverage:
     @rm -rf cov_profile
-    @deno test --coverage=cov_profile
+    @deno test --allow-read --allow-env --coverage=cov_profile
     @deno coverage cov_profile
 
 # Format source files

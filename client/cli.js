@@ -10,8 +10,8 @@
 // import { Resolver } from "did-resolver";
 // import { getResolver } from "web-did-resolver";
 // import { encaseP, promise } from "fluture";
-import { $, S } from "./sanctuary.js";
-import { didDocToVC, DIDDocument } from "./did.js";
+import { $, S } from "./lib/sanctuary/mod.js";
+import { didDocToVC, DIDDocument } from "./lib/didweb/mod.js";
 import { Command } from "cliffy/command/mod.ts";
 import { Context, getLogger } from "./ctx.js";
 import { loadPrivateKey, loadPublicKey } from "./lib.js";

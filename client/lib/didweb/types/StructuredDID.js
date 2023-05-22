@@ -2,7 +2,8 @@ import $ from "sanctuary-def";
 import { NonZeroPortNumber } from "./PortNumber.js";
 
 /**
- * DID according to https://w3c.github.io/did-core/#did-syntax for the did:web method definition (https://w3c.github.io/did-spec-registries/#did-methods).
+ * Structured DID Web according to https://w3c.github.io/did-core/#did-syntax.
+ *
  * @typedef DIDWeb
  * @type {object}
  * @property {string} name - DID method name
@@ -10,8 +11,8 @@ import { NonZeroPortNumber } from "./PortNumber.js";
  * @property {number} port - Port number that the connection is established to, default 443
  * @property {string[]} path - Method specific ID
  */
-export const DIDWeb = $.NamedRecordType("DIDWeb")(
-  "https://github.com/identinet/identinet/types#DIDWeb",
+export const StructuredDID = $.NamedRecordType("StructuredDID")(
+  "https://github.com/identinet/identinet/types#StructuredDID",
 )([])({
   name: $.NonEmpty($.String),
   domain: $.NonEmpty($.String),

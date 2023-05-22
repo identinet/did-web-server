@@ -1,12 +1,13 @@
 import { $, S } from "../sanctuary/mod.js";
 import { PrivateKey, PublicKey } from "./types/JWK.js";
 
-/** takeKeys :: Object -> Array String -> Maybe Object
+/**
  * takeKeys returns an object in which only the specified keys are present.
  *
- * @param {Object} object Any javascript object
- * @param {Array<String>} keys Array of strings that will be retrieved from object
- * @returns {Maybe<Object>} Maybe an object if all keys were present in object
+ * @param {Object} object Any javascript object.
+ * @param {Array<String>} keys Array of strings that will be retrieved from object.
+ *
+ * @returns {Maybe<Object>} Maybe an object if all keys were present in object.
  *
  * Tests:
  * > S.show(takeKeys({})([])));
@@ -38,7 +39,8 @@ export const takeKeys = S.def("takeKeys")({})([
   return result;
 });
 
-/** loadTextFileAsJson :: (String|Undefined) -> Maybe StrMap String
+/**
+ * loadTextFileAsJson :: (String|Undefined) -> Maybe StrMap String
  */
 const loadTextFileAsJson = (file) => {
   const parseJsonToStrMap = S.parseJson(S.is($.StrMap($.String)));
@@ -49,12 +51,12 @@ const loadTextFileAsJson = (file) => {
   ])(file);
 };
 
-/** loadPublicKey loads a JWK encoded public key from a file and returns it
+/**
+ * loadPublicKey loads a JWK encoded public key from a file and returns it.
  *
- * loadPublicKey :: String -> Either String PublicKey
+ * @param {String} publicKeyFile File name that contains public key.
  *
- * @param {String} publicKeyFile File name that contains public key
- * @returns {Either<String,PublicKey>} Either the public key or an error message
+ * @returns {Either<String,PublicKey>} Either the public key or an error message.
  */
 export const loadPublicKey = S.def("loadPublicKey")({})([
   $.String,
@@ -66,12 +68,12 @@ export const loadPublicKey = S.def("loadPublicKey")({})([
   S.maybeToEither("ERROR: public key couldn't be loaded"),
 ]));
 
-/** loadPrivateKey loads a JWK encoded public key from a file and returns it
+/**
+ * loadPrivateKey loads a JWK encoded public key from a file and returns it.
  *
- * loadPrivateKey :: String -> Either String PrivateKey
+ * @param {String} publicKeyFile File name that contains public key.
  *
- * @param {String} publicKeyFile File name that contains public key
- * @returns {Either<String,PrivateKey>} Either the public key or an error message
+ * @returns {Either<String,PrivateKey>} Either the public key or an error message.
  */
 export const loadPrivateKey = S.def("loadPrivateKey")({})([
   $.String,
