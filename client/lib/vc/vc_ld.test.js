@@ -1,5 +1,10 @@
 import { assertEquals, assertStrictEquals } from "std/testing/asserts.ts";
-import { validUntil, withClaim, withId } from "./vc_ld.js";
+import {
+  date2ISOStringWithoutMilliseconds,
+  validUntil,
+  withClaim,
+  withId,
+} from "./vc_ld.js";
 
 Deno.test("withId", () => {
   const credential = withId({}, "myid");
@@ -66,7 +71,7 @@ Deno.test("validUntil", () => {
   }, date);
   assertEquals(
     credential.validUntil,
-    date.toISOString(),
+    date2ISOStringWithoutMilliseconds(date),
     "When a valid date is provided, then the validity is set properly",
   );
 });

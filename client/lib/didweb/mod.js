@@ -1,12 +1,20 @@
 import * as vc from "@digitalbazaar/vc";
-import { buildDIDRequest } from "./did.js";
-import { validUntil, VC_LD_TEMPLATE, withClaim } from "../vc/vc_ld.js";
+import { S } from "../sanctuary/mod.js";
+import {
+  buildDIDRequest,
+  DID_CRUD_OPERATIONS,
+  fetchProofParameters,
+} from "./did.js";
+import { encaseP, promise } from "fluture";
+import {
+  documentLoader,
+  validUntil,
+  VC_LD_TEMPLATE,
+  VP_LD_TEMPLATE,
+  withClaim,
+} from "../vc/mod.js";
 
-// Currently the import fails on deno: https://github.com/digitalbazaar/security-context/issues/4
-// TODO: build an integration test to ensure it all works together
-// TODO: fix broken rust implementation
-import { Ed25519VerificationKey2020 } from "@digitalbazaar/ed25519-verification-key-2020";
-import { Ed25519Signature2020 } from "@digitalbazaar/ed25519-signature-2020";
+// import { Ed25519Signature2020 } from "@digitalbazaar/ed25519-signature-2020";
 
 /**
  * create registers a new DID on a compatible did-web-server.
@@ -56,27 +64,52 @@ export function deactivate(issuer, suite, did) {
   // TODO: perform the signing
   //
   // 1. create a VP with a simple VC that just points to the DID
-  let credential = withClaim(VC_LD_TEMPLATE, { id: did });
+  let credential = withClaim(VC_LD_TEMPLATE, {
+    id: did,
+  });
   const validityPeriodInMilliseconds = 1 * 60 * 1000;
   credential = validUntil(
     credential,
     new Date(Date.now() + validityPeriodInMilliseconds),
   );
   credential.issuer = issuer;
-  console.log(credential);
-  const signedCredential = vc.issue({
+  // credential = withId(credential, "https://example.com/credentials/1872");
+  // const now = (new Date()).toJSON();
+  // credential.issuanceDate = `${now.substr(0, now.length - 5)}Z`;
+  // credential = withContext(
+  //   credential,
+  //   "https://www.w3.org/2018/credentials/examples/v1",
+  // );
+  // credential = withType(credential, "AlumniCredential");
+  // credential.credentialSubject = credential.credentialSubject[0];
+  // console.log(credential);
+  // console.log(signedCredential);
+  return S.pipe([
+    // sign verifiable credential
+    encaseP(vc.issue),
+    // add credential to verifiable presentation
+    S.chain((signedCredential) =>
+      S.pipe([
+        fetchProofParameters,
+        S.chain((proofParameters) => {
+          let presentation = withCredential(VP_LD_TEMPLATE, signedCredential);
+          presentation = withHolder(presentation, issuer);
+          return encaseP(vc.issue)({
+            credential: presentation,
+            suite,
+            challenge: proofParameters,
+            documentLoader,
+          });
+        }),
+      ])(did)
+    ),
+    // send request to the server
+    S.chain(buildDIDRequest(DID_CRUD_OPERATIONS.deactivate)(did)),
+    S.chain(encaseP(fetch)),
+    promise,
+  ])({
     credential,
-    suite, // provides issuer?
+    suite,
+    documentLoader,
   });
-  console.log(signedCredential);
-
-  // // TODO: fetch proof parameters
-  // let url = structuredDID2URL(DID);
-  // url = new URL("?proofParameters", url);
-  // const proofParameters = fetchProofParameters(); // with the proof parameters added
-  // let presentation = withCredential(VP_LD_TEMPLATE, signedCredential);
-  // presentation = withHolder(presentation, signedCredential);
-  // const payload = vp.issue(presentation, challenge = proofParameters);
-  // // 1. send request
-  // buildDIDRequest(DID_CRUD_OPERATIONS.delete)(payload)(DID);
 }

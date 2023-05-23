@@ -27,6 +27,27 @@ export const VC_LD_TEMPLATE = {
 };
 
 /**
+ * Template for a verifiable presentation.
+ * @type {Credential}
+ */
+export const VP_LD_TEMPLATE = {
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+  ],
+  // "id": "TO_BE_DEFINED",
+  "type": ["VerifiablePresentation"],
+  // "issuer": "https://example.com/issuer/123",
+  // "validFrom": "2010-01-01T00:00:00Z",
+  // "credentialSubject": [{
+  //   "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
+  // }, {
+  //   "id": "did:example:c276e12ec21ebfeb1f712ebc6f1",
+  //   "name": "Morgan Doe",
+  //   "spouse": "did:example:ebfeb1f712ebc6f1c276e12ec21",
+  // }],
+};
+
+/**
  * setProperty sets a property to a value. If the property doesn't exist, it is created.
  *
  * @param {Credential} credential - A credential object.
@@ -98,12 +119,26 @@ export function withId(credential, id) {
  * @returns {Credential} Updated credential.
  */
 export function validUntil(credential, date) {
+  return setProperty(credential)("validUntil")(
+    date2ISOStringWithoutMilliseconds(date),
+  );
+}
+
+/**
+ * date2ISOStringWithoutMilliseconds converts a Date object into an ISO date string without milliseconds.
+ *
+ * @param {Date} date - date object.
+ *
+ * @returns {string} ISO date string without milliseconds.
+ */
+export function date2ISOStringWithoutMilliseconds(date) {
   if (!S.is($.ValidDate)(date)) {
     throw new Error(
       `TypeError: date is not of type ValidDate. Actual: ${S.type(date).name}`,
     );
   }
-  return setProperty(credential)("validUntil")(date.toISOString());
+  const isodate = date.toISOString();
+  return `${isodate.substring(0, isodate.length - 5)}Z`;
 }
 
 /**

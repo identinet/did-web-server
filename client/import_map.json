@@ -6,12 +6,13 @@
     "@digitalbazaar/ed25519-signature-2020": "https://esm.sh/v121/*@digitalbazaar/ed25519-signature-2020@5.2.0",
     "@digitalbazaar/ed25519-verification-key-2020": "https://esm.sh/v121/*@digitalbazaar/ed25519-verification-key-2020@4.1.0",
     "@digitalbazaar/vc": "https://esm.sh/v121/*@digitalbazaar/vc@6.0.1",
+    "fluture": "https://esm.sh/v121/*fluture@14.0.0",
     "fluture-sanctuary-types": "https://esm.sh/v121/*fluture-sanctuary-types@7.1.0",
     "fluture-sanctuary-types/": "https://esm.sh/v121/*fluture-sanctuary-types@7.1.0/",
-    "fluture": "https://esm.sh/v121/*fluture@14.0.0",
     "fluture/": "https://esm.sh/v121/*fluture@14.0.0/",
-    "sanctuary-def": "https://esm.sh/v121/*sanctuary-def@0.22.0",
-    "sanctuary": "https://esm.sh/v121/*sanctuary@3.1.0"
+    "jsonld-signatures": "https://esm.sh/v121/jsonld-signatures@11.2.1",
+    "sanctuary": "https://esm.sh/v121/*sanctuary@3.1.0",
+    "sanctuary-def": "https://esm.sh/v121/*sanctuary-def@0.22.0"
   },
   "scopes": {
     "https://esm.sh/v121/": {
@@ -25,7 +26,6 @@
       "crypto-ld": "https://esm.sh/v121/crypto-ld@7.0.0",
       "ed25519-signature-2018-context": "https://esm.sh/v121/ed25519-signature-2018-context@1.1.0",
       "ed25519-signature-2020-context": "https://esm.sh/v121/ed25519-signature-2020-context@1.1.0",
-      "jsonld-signatures": "https://esm.sh/v121/jsonld-signatures@11.2.1",
       "jsonld": "https://esm.sh/v121/jsonld@8.1.1",
       "sanctuary-either": "https://esm.sh/v121/sanctuary-either@2.1.0",
       "sanctuary-maybe": "https://esm.sh/v121/sanctuary-maybe@2.1.0",

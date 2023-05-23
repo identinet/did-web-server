@@ -30,8 +30,6 @@ const HTTP_METHODS = $.EnumType("HTTP_METHODS")(
  * @param {string} domain - Valid DNS domain name with optional port separated by a colon, e.g. localhost:3000.
  * @param {string} id - account id. Though the id is optional for did:web, it's required here.
  *
- * @throws Throws exception if types aren't correct.
- *
  * @returns {DID} returns encoded did:web DID.
  */
 export const id2DID = S.def("id2DID")({})([
@@ -86,8 +84,6 @@ export const did2StructuredDID = S.def("did2StructuredDID")({})([
  *
  * @param {DID} did - a valid did:web DID, see https://w3c-ccg.github.io/did-method-web/.
  *
- * @throws Throws exception if types aren't correct.
- *
  * @returns {Either<Error,URL>} Returns the URL to resolve the DID document.
  */
 const did2URL = S.def("did2URL")({})([
@@ -118,8 +114,6 @@ const did2URL = S.def("did2URL")({})([
  *
  * @param {DID} did - a valid did:web DID, see https://w4c-ccg.github.io/did-method-web/.
  *
- * @throws Throws exception if types aren't correct.
- *
  * @returns {Future<Error,string>} Returns proof parameters/challenge or rejects with an error message.
  */
 export const fetchProofParameters = S.def("fetchProofParameters")({})([
@@ -146,24 +140,22 @@ export const fetchProofParameters = S.def("fetchProofParameters")({})([
  * buildDIDRequest prepares a request that performs a CRUD operation on a did:web DID.
  *
  * @param {string} operation - CRUD operation performed on the DID - see @link DID_CRUD_OPERATIONS.
- * @param {object} payload - Payload that's required to perform the opeations. See did-web-server protocol for more details.
  * @param {DID} did - did:web DID.
- *
- * @throws Throws exception if types aren't correct.
+ * @param {object} payload - Payload that's required to perform the opeations. See did-web-server protocol for more details.
  *
  * @returns {Either<string,Request>} Returns either an HTTP request that can be passed to `fetch()` or an error message. The request always uses HTTPS unless the DID's domain is `localhost`.
  */
 export const buildDIDRequest = S.def("buildDIDRequest")({})([
   HTTP_METHODS,
-  $.Unknown,
   DID,
+  $.Unknown,
   $.Either($.String)($.Request),
 ])(
-  (operation) => (payload) =>
+  (operation) => (did) => (payload) =>
     S.pipe([
       did2URL,
       S.map((url) =>
         new Request(url, { method: operation, body: JSON.stringify(payload) })
       ),
-    ]),
+    ])(did),
 );
