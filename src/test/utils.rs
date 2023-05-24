@@ -1,14 +1,16 @@
 use chrono::prelude::*;
 use ssi::did_resolve::SeriesResolver;
 
+use ssi_json_ld::ContextLoader;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+use ssi::ldp::ProofSuiteType;
 use ssi::one_or_many::OneOrMany;
 use ssi::vc::{
     Context, Contexts, Credential, CredentialOrJWT, LinkedDataProofOptions, Presentation,
-    VCDateTime, URI,
+    StringOrURI, VCDateTime, URI,
 };
 
 pub fn read_file(filename: &str) -> Result<String, String> {
@@ -44,7 +46,7 @@ pub async fn create_credential_or_panic(
         context: Contexts::One(Context::URI(URI::String(
             "https://www.w3.org/2018/credentials/v1".to_string(),
         ))),
-        id: Some(URI::String(subject_id.to_string())),
+        id: Some(StringOrURI::String(subject_id.to_string())),
         type_: OneOrMany::One("VerifiableCredential".to_string()),
         credential_subject: OneOrMany::One(ssi::vc::CredentialSubject {
             id: Some(URI::String(id.to_string())),
@@ -61,16 +63,18 @@ pub async fn create_credential_or_panic(
         refresh_service: None,
         property_set: None,
     };
+    let mut context_loader = ContextLoader::default();
     let proof = match credential
         .generate_proof(
             &key,
             &LinkedDataProofOptions {
-                type_: Some("Ed25519Signature2018".to_string()),
+                type_: Some(ProofSuiteType::Ed25519Signature2020),
                 proof_purpose: Some(ssi::vc::ProofPurpose::AssertionMethod),
                 verification_method: Some(URI::String(verification_method.to_string())),
                 ..LinkedDataProofOptions::default()
             },
             resolver,
+            &mut context_loader,
         )
         .await
     {
@@ -98,8 +102,9 @@ pub async fn create_presentation_or_panic(
         verifiable_credential: Some(credentials),
         ..Presentation::default()
     };
+    let mut context_loader = ContextLoader::default();
     let proof = match presentation
-        .generate_proof(&key, &proof_options, resolver)
+        .generate_proof(&key, &proof_options, resolver, &mut context_loader)
         .await
     {
         Ok(proof) => Ok(proof),

@@ -21,10 +21,10 @@ pub struct ResolverOptions {
 lazy_static! {
     static ref DID_METHODS: DIDMethods<'static> = {
         let mut methods = DIDMethods::default();
-        methods.insert(&DIDKey);
-        methods.insert(&DIDEthr);
-        methods.insert(&DIDWeb);
-        methods.insert(&DIDWebKey);
+        methods.insert(Box::new(DIDKey));
+        methods.insert(Box::new(DIDEthr));
+        methods.insert(Box::new(DIDWeb));
+        methods.insert(Box::new(DIDWebKey));
         methods
     };
 }

@@ -34,6 +34,7 @@ pub enum DIDError {
     PresentationInvalid(String),
     #[response(status = 500)] // InternalServerError
     UnknownBackend(String),
+    OwnerMissing(String),
 }
 
 impl std::error::Error for DIDError {}
@@ -53,6 +54,7 @@ impl fmt::Display for DIDError {
             DIDError::DIDPortNotAllowed(e) => write!(f, "{}", e),
             DIDError::PresentationInvalid(e) => write!(f, "{}", e),
             DIDError::UnknownBackend(e) => write!(f, "{}", e),
+            DIDError::OwnerMissing(e) => write!(f, "{}", e),
         }
     }
 }

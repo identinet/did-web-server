@@ -10,6 +10,7 @@ use rocket::local::blocking::Client;
 use ssi::did::Document;
 use ssi::did_resolve::SeriesResolver;
 use ssi::jwk::{OctetParams, Params, JWK};
+use ssi::ldp::ProofSuiteType;
 use ssi::one_or_many::OneOrMany;
 use ssi::vc::{LinkedDataProofOptions, VCDateTime, URI};
 use std::path::PathBuf;
@@ -233,7 +234,7 @@ async fn integration_update() {
     );
     assert_eq!(
             proof_parameters.challenge.unwrap(), "d992a52400965351e261fdcfa47469cb3e0fa06cc658208c3c95bddf577dc29a",
-            "When DID is created in store, then the challenge is set to a unique but deterministic value."
+            "When DID is created in store, then the challenge is set to a unique and deterministic value."
         );
 
     // update
@@ -282,7 +283,7 @@ async fn integration_update() {
         &proof_parameters.did,
         OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
         &LinkedDataProofOptions {
-            type_: Some("Ed25519Signature2018".to_string()),
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
             domain: Some(proof_parameters.domain.to_string()),
             challenge: Some(proof_parameters.challenge.unwrap()),
             proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
@@ -345,7 +346,7 @@ async fn integration_update() {
         &proof_parameters.did,
         OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
         &LinkedDataProofOptions {
-            type_: Some("Ed25519Signature2018".to_string()),
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
             domain: Some(proof_parameters.domain.to_string()),
             challenge: Some(proof_parameters.challenge.unwrap()),
             proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
@@ -402,7 +403,7 @@ async fn integration_update() {
         &proof_parameters.did,
         OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
         &LinkedDataProofOptions {
-            type_: Some("Ed25519Signature2018".to_string()),
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
             domain: Some(proof_parameters.domain.to_string()),
             challenge: Some(proof_parameters.challenge.unwrap()),
             proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
@@ -465,7 +466,7 @@ async fn integration_update() {
         &proof_parameters.did,
         OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
         &LinkedDataProofOptions {
-            type_: Some("Ed25519Signature2018".to_string()),
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
             domain: Some(proof_parameters.domain.to_string()),
             challenge: Some(proof_parameters.challenge.unwrap()),
             proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
@@ -528,7 +529,7 @@ async fn integration_update() {
         &NOT_OWNER,
         OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
         &LinkedDataProofOptions {
-            type_: Some("Ed25519Signature2018".to_string()),
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
             domain: Some(proof_parameters.domain.to_string()),
             challenge: Some(proof_parameters.challenge.unwrap()),
             proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),

@@ -75,7 +75,7 @@ impl fmt::Display for DIDWeb {
             .collect::<Vec<String>>()
             .join(":");
         if id.is_empty() {
-            write!(f, "did:{}:{}", DIDWeb::name(), host,)
+            write!(f, "did:{}:{}", DIDWeb::name(), host)
         } else {
             write!(f, "did:{}:{}:{}", DIDWeb::name(), host, id)
         }

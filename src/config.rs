@@ -1,3 +1,5 @@
+use std::process;
+
 use ssi::did_resolve::HTTPDIDResolver;
 
 use crate::error::DIDError;
@@ -30,12 +32,17 @@ impl Config {
             external_port: get_env("DID_SERVER_EXTERNAL_PORT", &config.external_port),
             external_path: get_env("DID_SERVER_EXTERNAL_PATH", &config.external_path),
             owner: std::env::var("DID_SERVER_OWNER")
+                .map_err(|_| DIDError::OwnerMissing("Owner not specified".to_string()))
                 .and_then(|owner| {
                     if owner.is_empty() {
-                        Err(std::env::VarError::NotPresent)
+                        Err(DIDError::OwnerMissing("Owner not specified".to_string()))
                     } else {
                         Ok(owner)
                     }
+                })
+                .map_err(|e| {
+                    println!("Error: {}", e);
+                    process::exit(1)
                 })
                 .unwrap(),
             reslover_options: ResolverOptions {
@@ -73,6 +80,10 @@ impl Config {
                         }
                     },
                 )
+                .map_err(|e| {
+                    println!("Error: {}", e);
+                    process::exit(1)
+                })
                 .unwrap(),
         }
     }

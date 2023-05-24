@@ -1,7 +1,6 @@
-use std::path::Path;
-
 use dashmap::DashMap;
 use ssi::did::Document;
+use std::path::Path;
 
 use crate::error::DIDError;
 
@@ -117,7 +116,7 @@ mod test {
             &id,
             Document {
                 context: ssi::did::Contexts::One(Context::URI(
-                    "https://example.com/my/context".to_string(),
+                    iref::IriRefBuf::new("https://example.com/my/context").unwrap(),
                 )),
                 id: "did:my:did".to_string(),
                 also_known_as: None,
@@ -149,7 +148,7 @@ mod test {
             &id,
             Document {
                 context: ssi::did::Contexts::One(Context::URI(
-                    "https://example.com/my/context".to_string(),
+                    iref::IriRefBuf::new("https://example.com/my/context").unwrap(),
                 )),
                 id: "did:my:did".to_string(),
                 also_known_as: None,
@@ -180,7 +179,7 @@ mod test {
             &id,
             Document {
                 context: ssi::did::Contexts::One(Context::URI(
-                    "https://example.com/my/context".to_string(),
+                    iref::IriRefBuf::new("https://example.com/my/context").unwrap(),
                 )),
                 id: "did:my:did".to_string(),
                 also_known_as: None,
@@ -206,7 +205,7 @@ mod test {
             &id,
             Document {
                 context: ssi::did::Contexts::One(Context::URI(
-                    "https://example.com/my/context".to_string(),
+                    iref::IriRefBuf::new("https://example.com/my/context").unwrap(),
                 )),
                 id: "did:my:did".to_string(),
                 also_known_as: None,
@@ -232,7 +231,7 @@ mod test {
             &id,
             Document {
                 context: ssi::did::Contexts::One(Context::URI(
-                    "https://example.com/my/context".to_string(),
+                    iref::IriRefBuf::new("https://example.com/my/context").unwrap(),
                 )),
                 id: "did:my:did".to_string(),
                 also_known_as: None,
@@ -265,11 +264,12 @@ mod test {
             "When <id> isn't present in store and a remove is attempted, then an error is returned"
         );
 
+        // TOOD: continue here to fix the result type
         let result = store.create(
             &id,
             Document {
                 context: ssi::did::Contexts::One(Context::URI(
-                    "https://example.com/my/context".to_string(),
+                    iref::IriRefBuf::new("https://example.com/my/context").unwrap(),
                 )),
                 id: "did:my:did".to_string(),
                 also_known_as: None,

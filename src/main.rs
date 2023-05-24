@@ -23,6 +23,7 @@ use rocket::http::ContentType;
 use rocket::serde::json::Json;
 use ssi::did::{Document, VerificationRelationship};
 use ssi::vc::{LinkedDataProofOptions, Presentation};
+use ssi_json_ld::ContextLoader;
 use std::cmp::Ordering;
 use std::path::PathBuf;
 
@@ -211,7 +212,11 @@ async fn update(
     // TODO: test if all the containing credentials are also fully verified - is this poperly done by the verify call?
     // - [x] ensure that signatures are correct
     // - [-] are the options also applied to every single credential or do they need to be reapplied?
-    let result = presentation.verify(Some(opts), &resolver).await;
+
+    let mut context_loader = ContextLoader::default();
+    let result = presentation
+        .verify(Some(opts), &resolver, &mut context_loader)
+        .await;
 
     // TODO: remove debug output
     println!("checks {}", result.checks.len());

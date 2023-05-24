@@ -3,8 +3,9 @@ use std::{cmp::Ordering, fmt};
 
 use chrono::{DateTime, Utc};
 use ssi::did::{Document, VerificationRelationship};
+use ssi::ldp::Proof;
 use ssi::one_or_many::OneOrMany;
-use ssi::vc::{Credential, CredentialOrJWT, CredentialSubject, Presentation, Proof, VCDateTime};
+use ssi::vc::{Credential, CredentialOrJWT, CredentialSubject, Presentation, VCDateTime};
 
 use crate::error::DIDError;
 
