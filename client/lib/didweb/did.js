@@ -2,6 +2,7 @@ import { $, S } from "../sanctuary/mod.js";
 import { attemptP, encaseP, reject, resolve } from "fluture";
 import { StructuredDID } from "./types/StructuredDID.js";
 import { DID } from "./types/DID.js";
+import { ProofParameters } from "./types/ProofParameters.js";
 import { NonZeroPortNumber } from "./types/PortNumber.js";
 
 /**
@@ -19,6 +20,7 @@ export const DID_CRUD_OPERATIONS = {
 
 /**
  * HTTP_METHODS list of supported HTTP method names.
+ * @typedef HTTP_METHODS
  */
 const HTTP_METHODS = $.EnumType("HTTP_METHODS")(
   "https://github.com/identinet/identinet/types#HTTP_METHODS",
@@ -114,11 +116,11 @@ const did2URL = S.def("did2URL")({})([
  *
  * @param {DID} did - a valid did:web DID, see https://w4c-ccg.github.io/did-method-web/.
  *
- * @returns {Future<Error,string>} Returns proof parameters/challenge or rejects with an error message.
+ * @returns {Future<Error,ProofParameters>} Returns proof parameters/challenge or rejects with an error message.
  */
 export const fetchProofParameters = S.def("fetchProofParameters")({})([
   DID,
-  $.Future($.Error)($.String),
+  $.Future($.Error)(ProofParameters),
 ])(
   S.pipe([
     // build URL
@@ -130,7 +132,7 @@ export const fetchProofParameters = S.def("fetchProofParameters")({})([
     // I might have to use F.chain for an unknown reason
     S.chain((response) => {
       return response.ok
-        ? attemptP(() => response.text())
+        ? attemptP(() => response.json())
         : reject(response.statusText);
     }),
   ]),
@@ -143,13 +145,13 @@ export const fetchProofParameters = S.def("fetchProofParameters")({})([
  * @param {DID} did - did:web DID.
  * @param {object} payload - Payload that's required to perform the opeations. See did-web-server protocol for more details.
  *
- * @returns {Either<string,Request>} Returns either an HTTP request that can be passed to `fetch()` or an error message. The request always uses HTTPS unless the DID's domain is `localhost`.
+ * @returns {Either<Error,Request>} Returns either an HTTP request that can be passed to `fetch()` or an error message. The request always uses HTTPS unless the DID's domain is `localhost`.
  */
 export const buildDIDRequest = S.def("buildDIDRequest")({})([
   HTTP_METHODS,
   DID,
   $.Unknown,
-  $.Either($.String)($.Request),
+  $.Either($.Error)($.Request),
 ])(
   (operation) => (did) => (payload) =>
     S.pipe([

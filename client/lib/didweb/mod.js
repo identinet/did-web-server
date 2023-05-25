@@ -5,13 +5,15 @@ import {
   DID_CRUD_OPERATIONS,
   fetchProofParameters,
 } from "./did.js";
-import { encaseP, promise } from "fluture";
+import { encaseP, promise, reject, resolve } from "fluture";
 import {
   documentLoader,
   validUntil,
   VC_LD_TEMPLATE,
   VP_LD_TEMPLATE,
   withClaim,
+  withCredential,
+  withHolder,
 } from "../vc/mod.js";
 
 // import { Ed25519Signature2020 } from "@digitalbazaar/ed25519-signature-2020";
@@ -94,17 +96,20 @@ export function deactivate(issuer, suite, did) {
         S.chain((proofParameters) => {
           let presentation = withCredential(VP_LD_TEMPLATE, signedCredential);
           presentation = withHolder(presentation, issuer);
-          return encaseP(vc.issue)({
-            credential: presentation,
+          return encaseP(vc.signPresentation)({
+            presentation,
             suite,
-            challenge: proofParameters,
+            challenge: proofParameters.challenge,
             documentLoader,
           });
         }),
       ])(did)
     ),
     // send request to the server
-    S.chain(buildDIDRequest(DID_CRUD_OPERATIONS.deactivate)(did)),
+    S.chain(S.pipe([
+      buildDIDRequest(DID_CRUD_OPERATIONS.deactivate)(did),
+      S.either(reject)(resolve), // convert either to
+    ])),
     S.chain(encaseP(fetch)),
     promise,
   ])({
