@@ -11,7 +11,7 @@ import { URLType } from "./types/URLType.js";
 import { RequestType } from "./types/RequestType.js";
 import { ResponseType } from "./types/ResponseType.js";
 
-export { log } from "./utils.js";
+export * from "./utils.js";
 
 // TODO: add a simple function interface for adding / registering new types
 
