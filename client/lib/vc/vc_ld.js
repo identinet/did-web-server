@@ -1,9 +1,16 @@
 import { $, S } from "../sanctuary/mod.js";
 
 /**
+ * A Verifiable Presentation that can be enhanced with addtional functions from this module.
+ * See also @link https://w3c.github.io/vc-data-model/.
+ * @typedef {object} Presentation
+ */
+
+/**
  * A Verifiable Credential that can be enhanced with addtional functions from this module.
  * See also @link https://w3c.github.io/vc-data-model/.
- * @typedef {object} Credential */
+ * @typedef {object} Credential
+ */
 
 /**
  * Template for a verifiable credential.
@@ -15,27 +22,6 @@ export const VC_LD_TEMPLATE = {
   ],
   // "id": "TO_BE_DEFINED",
   "type": ["VerifiableCredential"],
-  // "issuer": "https://example.com/issuer/123",
-  // "validFrom": "2010-01-01T00:00:00Z",
-  // "credentialSubject": [{
-  //   "id": "did:example:ebfeb1f712ebc6f1c276e12ec21",
-  // }, {
-  //   "id": "did:example:c276e12ec21ebfeb1f712ebc6f1",
-  //   "name": "Morgan Doe",
-  //   "spouse": "did:example:ebfeb1f712ebc6f1c276e12ec21",
-  // }],
-};
-
-/**
- * Template for a verifiable presentation.
- * @type {Credential}
- */
-export const VP_LD_TEMPLATE = {
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-  ],
-  // "id": "TO_BE_DEFINED",
-  "type": ["VerifiablePresentation"],
   // "issuer": "https://example.com/issuer/123",
   // "validFrom": "2010-01-01T00:00:00Z",
   // "credentialSubject": [{
@@ -101,10 +87,10 @@ export const appendProperty = S.def("appendProperty")({})([
 /**
  * withId sets the ID property of a credential.
  *
- * @param {Credential} credential - A credential object.
+ * @param {(Credential|Presentation)} credential - A credential object.
  * @param {string} id - ID for the credential.
  *
- * @returns {Credential} Updated credential.
+ * @returns {(Credential|Presentation)} Updated credential.
  */
 export function withId(credential, id) {
   return setProperty(credential)("id")(id);
@@ -166,9 +152,9 @@ export function withContext(credential, context) {
 }
 
 /**
- * withType adds an additional type to a credential.
+ * withType adds an additional type to a credential or persentation.
  *
- * @param {Credential} credential - A credential object.
+ * @param {(Credential|Presentation)} credential - A credential or presentation object.
  * @param {string} type - A JSON-LD type. Make sure the corresponding context has been added via @link withContext.
  *
  * @returns {Credential} Updated credential.
