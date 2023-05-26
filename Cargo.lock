@@ -1175,7 +1175,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "543b322ff52ab4892f4fd30ceb8fa1007aca4e3c5e89ad55793036846f0cc74e"
 dependencies = [
  "async-trait",
+ "k256",
  "multibase 0.8.0",
+ "p256 0.11.1",
  "serde_json",
  "simple_asn1",
  "ssi-crypto",
@@ -1217,6 +1219,7 @@ dependencies = [
  "serde_json",
  "sha256",
  "ssi",
+ "ssi-dids",
  "ssi-json-ld",
 ]
 

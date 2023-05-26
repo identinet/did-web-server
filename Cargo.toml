@@ -11,10 +11,10 @@ fail-on-warnings = []
 [dependencies]
 chrono = "~0.4.22"
 dashmap = "~5.4.0"
-did-ethr = { version = "^0.2.1", default-features = false }
-did-method-key = { version = "^0.2.1", default-features = false }
-did-web = { version = "^0.2.1", default-features = false }
-did-webkey = { version = "^0.2.2", default-features = false }
+did-ethr = { version = "^0.2.1" }
+did-method-key = { version = "^0.2.1" }
+did-web = { version = "^0.2.1" }
+did-webkey = { version = "^0.2.2" }
 lazy_static = "^1.4.0"
 regex = "^1"
 rocket = { version = "^0.5.0-rc.3", features = ["json"] }
@@ -28,6 +28,7 @@ ssi = { version = "~0.6.0", features = [
   "ed25519",
   "http-did",
 ], default-features = false }
+ssi-dids = { version = "~0.1.1" }
 ssi-json-ld = { version = "~0.2.1" }
 
 [dev-dependencies]

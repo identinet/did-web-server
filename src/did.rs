@@ -135,7 +135,7 @@ impl DIDWeb {
             || id.is_relative() && *id != PathBuf::from(".well-known/did.json")
         {
             // TODO: I don't understand the clippy suggestion .. does it apply here?
-            #[allow(clippy::for_loops_over_fallibles)]
+            #[allow(for_loops_over_fallibles)]
             for segment in id.parent().iter() {
                 match segment.to_str() {
                     Some(_segment) => _id.push(DIDSegment::from(_segment)?),

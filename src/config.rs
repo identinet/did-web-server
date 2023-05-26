@@ -26,6 +26,36 @@ pub struct Config {
 }
 
 impl Config {
+    // INFO: I wish I could get this to work somehow
+    /// get_resolver Retrieves the resolver from the configuration.
+    // pub fn get_resolver<'a>(&self, custom_resolver: Option<&'a dyn DIDResolver>) -> SeriesResolver {
+    //     let mut series_resolver = self.reslover_options.get_resolver();
+    //     if let Some(resolver) = custom_resolver {
+    //         series_resolver.resolvers.push(resolver);
+    //     }
+    //     series_resolver
+    //     // let mut resolvers: Vec<&dyn ssi::did_resolve::DIDResolver> = vec![];
+    //     // #[cfg(test)]
+    //     // let test_resolver = DIDWebTestResolver {
+    //     //     store: Some(&self.store),
+    //     //     ..DIDWebTestResolver::default()
+    //     // };
+    //     // #[cfg(test)]
+    //     // resolvers.push(test_resolver.as_ref());
+    //     // resolvers.push(&self.reslover_options.get_resolver());
+    //     // SeriesResolver { resolvers }
+    // }
+    // /// get_resolver Retrieves the resolver from the configuration.
+    // pub fn get_test_resolver(&self) -> Option<&dyn DIDResolver> {
+    //     #[cfg(test)]
+    //     return Some(&DIDWebTestResolver {
+    //         store: Some(&self.store),
+    //         ..DIDWebTestResolver::default()
+    //     });
+    //     // reason = "only in test cases this code isn't used"
+    //     #[allow(unreachable_code)]
+    //     return None;
+    // }
     pub fn load_env_or_panic(config: Config) -> Config {
         Config {
             external_hostname: get_env("DID_SERVER_EXTERNAL_HOSTNAME", &config.external_hostname),

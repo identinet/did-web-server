@@ -13,28 +13,20 @@ use crate::config::Config;
 use crate::content_types::DIDContentTypes;
 use crate::did::{DIDWeb, ProofParameters};
 use crate::error::{CustomStatus, DIDError};
-use crate::utils::{
-    compare_date, ensure_proof_matches_verification_method, get_did_doc_from_presentation, log,
-};
-use chrono::Utc;
+use crate::utils::{log, verify_issuer};
 use rocket::figment::providers::{Env, Serialized};
 use rocket::figment::{Figment, Profile};
 use rocket::http::ContentType;
 use rocket::serde::json::Json;
 use ssi::did::{Document, VerificationRelationship};
-use ssi::vc::{LinkedDataProofOptions, Presentation};
-use ssi_json_ld::ContextLoader;
-use std::cmp::Ordering;
+use ssi::vc::Presentation;
 use std::path::PathBuf;
+use utils::verify_presentation;
 
 #[cfg(test)]
 mod test;
 #[cfg(test)]
 mod test_resolver;
-#[cfg(test)]
-use crate::test_resolver::DIDWebTestResolver;
-#[cfg(test)]
-use ssi::did_resolve::SeriesResolver;
 
 #[macro_use]
 extern crate rocket;
@@ -159,7 +151,9 @@ fn create(
 
 /// Updates a DID Document if the identity is authorized to perform this operation.
 ///
-/// * `presentation` - verifable presentation that holds the updated DID Document
+/// * `config` - the server configuration.
+/// * `id` - path to the identity.
+/// * `presentation` - verifable presentation that holds the updated DID Document.
 ///
 /// # TODO
 ///
@@ -170,95 +164,29 @@ async fn update(
     id: PathBuf,
     presentation: Json<Presentation>,
 ) -> Result<Json<ProofParameters>, DIDError> {
-    // retrieve proof parameters required to verify the correctness of the presentation
-    let did_doc = config.store.get(&id)?;
-    let proof_parameters = ProofParameters::new(config, &did_doc)?;
-
-    ensure_proof_matches_verification_method(
-        &did_doc,
+    // The user is the only one allowed to update the personal DID document
+    let did = format!(
+        "{}",
+        DIDWeb::new(
+            &config.external_hostname,
+            &config.external_port,
+            &config.external_path,
+            &id,
+        )?
+    );
+    verify_issuer(
+        config,
+        &did,
         VerificationRelationship::AssertionMethod,
-        &presentation.proof,
-    )?;
+        &presentation,
+    )
+    .await?;
 
-    // TODO: maybe: if there's no valid presentation by the user, see if the owner signed the presentation
-
-    // TODO: remove debug output
-    match proof_parameters.challenge {
-        Some(ref v) => println!("proof parameters, challenge: {}", v),
-        None => println!("proof parameters, challenge: no challenge present"),
-    }
-
-    let opts = LinkedDataProofOptions {
-        challenge: Some(proof_parameters.challenge.unwrap()), // fail if challenge is not present
-        domain: Some(proof_parameters.domain.to_string()),
-        proof_purpose: Some(ssi::vc::ProofPurpose::Authentication),
-        // created: xx; // TODO this is set to now_ms, not sure if that's correct .. I guess that is should have be created max a minute ago
-        ..LinkedDataProofOptions::default()
-    };
-
-    let resolver = config.reslover_options.get_resolver();
-    #[cfg(test)]
-    let std_resolvers = resolver;
-    #[cfg(test)]
-    let test_resolver = DIDWebTestResolver {
-        store: Some(&config.store),
-        ..DIDWebTestResolver::default()
-    };
-    #[cfg(test)]
-    let resolver = SeriesResolver {
-        resolvers: vec![&test_resolver, &std_resolvers],
-    };
-
-    // TODO: test if all the containing credentials are also fully verified - is this poperly done by the verify call?
-    // - [x] ensure that signatures are correct
-    // - [-] are the options also applied to every single credential or do they need to be reapplied?
-
-    let mut context_loader = ContextLoader::default();
-    let result = presentation
-        .verify(Some(opts), &resolver, &mut context_loader)
-        .await;
-
-    // TODO: remove debug output
-    println!("checks {}", result.checks.len());
-    println!("warn {}", result.warnings.len());
-    println!("errors {}", result.errors.len());
-    println!("errors: {}", result.errors.join(", "));
-
-    if !result.errors.is_empty() {
-        return Err(DIDError::PresentationInvalid(
-            "Presentation invalid, verification failed".to_string(),
-        ));
-    }
+    let (_result, _vc, did_doc) = verify_presentation(config, id.clone(), presentation).await?;
 
     // TODO: ?
     // - [ ] find the credential that was issued by the DID itself .. or the controlling DID?
-    // - [ ] ensure that the DID is the subject of the DID Document
-
-    let presentation = presentation.into_inner();
-    let (vc, did_doc) = get_did_doc_from_presentation(&presentation, proof_parameters.did)?;
-
-    // ensure that inssuance_date is not in the future
-    compare_date(&vc.issuance_date, Ordering::Less, Utc::now()).ok_or_else(|| {
-        DIDError::PresentationInvalid(
-            "Presentation invalid, DID Doc credential has been issued in the future or has no issuance date".to_string(),
-            ) })?;
-
-    // verify expiration_date as it's not verified by verify() https://github.com/spruceid/ssi/issues/470
-    match &vc.expiration_date {
-        Some(expiration_date) => compare_date(
-            &Some(expiration_date.clone()),
-            Ordering::Greater,
-            Utc::now(),
-        )
-        .ok_or_else(|| {
-            DIDError::PresentationInvalid(
-                "Presentation invalid, DID Doc credential has expired".to_string(),
-            )
-        }),
-        _ => Ok(Ordering::Greater),
-    }?;
-
-    // TODO: verify "not before use" date - applies only to JWT claims
+    // - [ ] ensure that the DID is the subject of the DID Document .. maybe not necessary
 
     // FIXME: unsure how to easily convert a CredentialSubject into a Document. Via json encoding? - not beautiful!!
     let did_doc = serde_json::to_string(&did_doc)
@@ -276,15 +204,28 @@ async fn update(
     }
 }
 
-/// Deletes a DID Document if the identity is authorized to perform this operation.
+/// Deletes a DID Document if the identity is authorized to perform this operation. Currently, only the owner of the
+/// server is allowed to delete DID Documents.
 ///
-/// * `presentation` - verifable presentation that holds the updated DID Document
+/// # Arguments
 ///
-/// # TODO
-///
-/// * Implement authorization - admin + user who can delete their own id .. good?
-#[delete("/<id..>")]
-fn delete(config: &rocket::State<Config>, id: PathBuf) -> Result<Json<String>, DIDError> {
+/// * `config` - the server configuration.
+/// * `id` - path to the identity.
+/// * `presentation` - verifable presentation that holds the updated DID Document.
+#[delete("/<id..>", data = "<presentation>")]
+async fn delete(
+    config: &rocket::State<Config>,
+    id: PathBuf,
+    presentation: Json<Presentation>,
+) -> Result<Json<String>, DIDError> {
+    // verifyAuthentication(config, ) - check user's DID that was used for signing presentation and credentials
+    // verifyAuthorization(config, ) - check if the administrator's DID was used
+    // verifyIntegrity(config, )
+    // verifyPresentation(config, )
+    // retrieve proof parameters required to verify the correctness of the presentation
+
+    // verify authorization
+
     // test existence - if not, then return 404
     // try deletion - return 503 if something goes wrong, otherwise 200
     let computed_did = match DIDWeb::did_from_config(config, &id) {
