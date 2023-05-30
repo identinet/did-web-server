@@ -21,7 +21,7 @@ use rocket::serde::json::Json;
 use ssi::did::{Document, VerificationRelationship};
 use ssi::vc::Presentation;
 use std::path::PathBuf;
-use utils::verify_presentation;
+use utils::{verify_did_in_did_doc, verify_presentation};
 
 #[cfg(test)]
 mod test;
@@ -184,11 +184,10 @@ async fn update(
 
     let (_result, _vc, did_doc) = verify_presentation(config, id.clone(), presentation).await?;
 
-    // TODO: ?
-    // - [ ] find the credential that was issued by the DID itself .. or the controlling DID?
-    // - [ ] ensure that the DID is the subject of the DID Document .. maybe not necessary
+    // ensure that the DID is the subject of the DID Document
+    verify_did_in_did_doc(&did, did_doc.clone())?;
 
-    // FIXME: unsure how to easily convert a CredentialSubject into a Document. Via json encoding? - not beautiful!!
+    // INFO: unsure how to easily convert a CredentialSubject into a Document. Via json encoding? - not beautiful!!
     let did_doc = serde_json::to_string(&did_doc)
         .ok()
         // .map(log("json"))
@@ -212,11 +211,11 @@ async fn update(
 /// * `config` - the server configuration.
 /// * `id` - path to the identity.
 /// * `presentation` - verifable presentation that holds the updated DID Document.
-#[delete("/<id..>", data = "<presentation>")]
+#[delete("/<id..>", data = "<_presentation>")]
 async fn delete(
     config: &rocket::State<Config>,
     id: PathBuf,
-    presentation: Json<Presentation>,
+    _presentation: Json<Presentation>,
 ) -> Result<Json<String>, DIDError> {
     // verifyAuthentication(config, ) - check user's DID that was used for signing presentation and credentials
     // verifyAuthorization(config, ) - check if the administrator's DID was used

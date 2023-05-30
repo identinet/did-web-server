@@ -206,6 +206,26 @@ pub async fn verify_issuer(
         })
 }
 
+/// verify_did_in_did_doc verifies that the DID is the subject of the DID Document or returns an error.
+pub fn verify_did_in_did_doc(did: &str, did_doc: CredentialSubject) -> Result<bool, DIDError> {
+    // ensure that the DID is the subject of the DID Document
+    did_doc
+        .id
+        .ok_or(DIDError::DIDMismatch(format!(
+            "DID Doc is missing id with value {}",
+            did
+        )))
+        .and_then(|id| {
+            if id.to_string() == did {
+                return Ok(true);
+            }
+            Err(DIDError::DIDMismatch(format!(
+                "DID Doc has been issued for {} instead of {}",
+                id, did
+            )))
+        })
+}
+
 /// verify_presentation verifies the integrity and authenticity of a presentation and its included credentials.
 /// Returns the verification result and the first credential that was issued to the DID specified by id containing the
 /// new DID Document.
