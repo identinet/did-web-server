@@ -189,9 +189,14 @@ fn id2filename<'a>(base_dir: &Path, id: &Path) -> Result<PathBuf, &'a str> {
         //     x
         // })
         .and_then(|filename| {
-            filename
-                .to_str()
-                .and_then(|_f| if _f == "did.json" { id.parent() } else { None })
+            filename.to_str().and_then(|_f| {
+                if _f == "did.json" {
+                    Some(id)
+                    // .parent()
+                } else {
+                    None
+                }
+            })
         })
         .and_then(|id_file| {
             if id_file.is_absolute() {
@@ -255,7 +260,7 @@ mod test {
 
         let id = PathBuf::from("abc/did.json");
         let base_dir = PathBuf::from(&format!("{}{}", env!("CARGO_MANIFEST_DIR"), "/dids"));
-        let id_with_extension = "abc.json";
+        let id_with_extension = "abc/did.json";
         let result = id2filename(&base_dir, &id);
         match result {
             Ok(r) => assert_eq!(
@@ -270,7 +275,7 @@ mod test {
 
         let id = PathBuf::from(".well-known/did.json");
         let base_dir = PathBuf::from(&format!("{}{}", env!("CARGO_MANIFEST_DIR"), "/dids"));
-        let id_with_extension = ".well-known.json";
+        let id_with_extension = ".well-known/did.json";
         let result = id2filename(&base_dir, &id);
         match result {
             Ok(r) => assert_eq!(
