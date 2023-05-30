@@ -21,7 +21,7 @@ use rocket::serde::json::Json;
 use ssi::did::{Document, VerificationRelationship};
 use ssi::vc::Presentation;
 use std::path::PathBuf;
-use utils::{verify_did_in_did_doc, verify_presentation};
+use utils::verify_presentation;
 
 #[cfg(test)]
 mod test;
@@ -46,8 +46,8 @@ fn get_proof_parameters(
         .store
         .get(&id)
         .and_then(|ref doc| ProofParameters::new(config, doc))
-        .map_err(log("get, got error:"))
-        .map(log("got proof parameters:"))
+        // .map_err(log("get, got error:"))
+        // .map(log("got proof parameters:"))
         .map(Json)
 }
 
@@ -183,9 +183,6 @@ async fn update(
     .await?;
 
     let (_result, _vc, did_doc) = verify_presentation(config, id.clone(), presentation).await?;
-
-    // ensure that the DID is the subject of the DID Document
-    verify_did_in_did_doc(&did, did_doc.clone())?;
 
     // INFO: unsure how to easily convert a CredentialSubject into a Document. Via json encoding? - not beautiful!!
     let did_doc = serde_json::to_string(&did_doc)

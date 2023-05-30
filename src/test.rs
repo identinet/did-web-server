@@ -360,7 +360,7 @@ async fn integration_update() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    println!("presentation: {}", presentation_string);
+    // println!("presentation: {}", presentation_string);
     // update did doc via presentation
     let response = client
         .put(uri!(super::update(
@@ -461,6 +461,7 @@ async fn integration_update() {
         &key,
     )
     .await;
+    println!("cred: {}", id);
     // build a presentation from the credential
     let presentation = utils::create_presentation_or_panic(
         &proof_parameters.did,

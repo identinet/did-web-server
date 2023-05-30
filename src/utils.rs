@@ -73,7 +73,7 @@ pub fn get_did_doc_from_presentation(
                             |acc, credential_subject| {
                                 let id_equals_proof_parameter_did =
                                     credential_subject.id.as_ref().and_then(|id| {
-                                        println!("credential subject: {:?}", id.to_string());
+                                        // println!("credential subject: {:?}", id.to_string());
                                         if id.to_string() == did {
                                             Some(true)
                                         } else {
@@ -81,7 +81,7 @@ pub fn get_did_doc_from_presentation(
                                         }
                                     });
                                 if acc.is_none() && id_equals_proof_parameter_did.is_some() {
-                                    println!("credential has been issued for DID {}", did);
+                                    // println!("credential has been issued for DID {}", did);
                                     // TODO: ensure that document is a DID Doc
                                     Some((credential.clone(), credential_subject))
                                 } else {
@@ -91,7 +91,7 @@ pub fn get_did_doc_from_presentation(
                         )
                     }
                     CredentialOrJWT::JWT(_) => {
-                        println!("credential jwt");
+                        // println!("credential jwt");
                         // ignore JWT credentials
                         None
                     }
@@ -170,7 +170,7 @@ pub async fn verify_issuer(
             .await
             .map(|map| map.into_keys().collect())
             .map_err(|_| DIDError::DIDNotFound("Couldn't fully resolve DID".to_string()))?;
-    println!("vmms: {:?}", vmms);
+    // println!("vmms: {:?}", vmms);
     // extract the supported verification methods from did document
     // let verification_methods_in_did_doc: Vec<String> = issuer_did_doc
     //     .get_verification_method_ids(verification_relationship)
@@ -188,10 +188,10 @@ pub async fn verify_issuer(
                     .as_ref()
                     .and_then(|verification_method| {
                         if vmms.contains(verification_method) {
-                            println!("proof found {}", verification_method);
+                            // println!("proof found {}", verification_method);
                             Some(verification_method)
                         } else {
-                            println!("proof not found");
+                            // println!("proof not found");
                             None
                         }
                     })
@@ -206,25 +206,26 @@ pub async fn verify_issuer(
         })
 }
 
-/// verify_did_in_did_doc verifies that the DID is the subject of the DID Document or returns an error.
-pub fn verify_did_in_did_doc(did: &str, did_doc: CredentialSubject) -> Result<bool, DIDError> {
-    // ensure that the DID is the subject of the DID Document
-    did_doc
-        .id
-        .ok_or(DIDError::DIDMismatch(format!(
-            "DID Doc is missing id with value {}",
-            did
-        )))
-        .and_then(|id| {
-            if id.to_string() == did {
-                return Ok(true);
-            }
-            Err(DIDError::DIDMismatch(format!(
-                "DID Doc has been issued for {} instead of {}",
-                id, did
-            )))
-        })
-}
+// INFO: is provided by get_did_doc_from_presentation. I'll keep it around in case a separate verification is needed
+// /// verify_did_in_did_doc verifies that the DID is the subject of the DID Document or returns an error.
+// pub fn verify_did_in_did_doc(did: &str, did_doc: CredentialSubject) -> Result<bool, DIDError> {
+//     // ensure that the DID is the subject of the DID Document
+//     did_doc
+//         .id
+//         .ok_or(DIDError::DIDMismatch(format!(
+//             "DID Doc is missing id with value {}",
+//             did
+//         )))
+//         .and_then(|id| {
+//             if id.to_string() == did {
+//                 return Ok(true);
+//             }
+//             Err(DIDError::DIDMismatch(format!(
+//                 "DID Doc has been issued for {} instead of {}",
+//                 id, did
+//             )))
+//         })
+// }
 
 /// verify_presentation verifies the integrity and authenticity of a presentation and its included credentials.
 /// Returns the verification result and the first credential that was issued to the DID specified by id containing the
