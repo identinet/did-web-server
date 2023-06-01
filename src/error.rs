@@ -18,7 +18,7 @@ pub enum DIDError {
     NoFileWrite(String),
     #[response(status = 400)] // BadRequest
     NoFileName(String),
-    #[response(status = 403)] // Forbidden
+    #[response(status = 409)] // Conflict
     DIDExists(String),
     #[response(status = 400)] // BadRequest
     IllegalCharacter(String),

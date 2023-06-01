@@ -3,7 +3,6 @@ use crate::error::DIDError;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha256::digest;
-use ssi::did::Document;
 use ssi::vc::ProofPurpose;
 use std::{fmt, path::PathBuf};
 
@@ -14,32 +13,41 @@ static URL_SEGMENT_SEPARATOR: &str = "/";
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ProofParameters {
     pub did: String,
-    /// Challenge is the sha256 hash of the current DID Document, if present
+    /// Challenge that's expected to be set on credentials that are received. It is used in the verification of the provided credential/presentation.
+    /// The challenge is the deterministic sha256 hash of the current DID Document (if present) or the hash of the DID.
     pub challenge: Option<String>,
+    /// Domain name that's expected to be set on credentials that are received. It is used in the verification of the provided credential/presentation.
     pub domain: String,
+    /// Proof purpose that's expected to be set on credentials that are received. It is used in the verification of the provided credential/presentation.
     pub proof_purpose: ProofPurpose,
 }
 
 impl ProofParameters {
     /// Create a new ProofParameters struct
-    pub fn new(
-        config: &rocket::State<Config>,
-        doc: &Document,
-    ) -> Result<ProofParameters, DIDError> {
-        serde_json::to_string(doc)
-            .map_err(|e| DIDError::ContentConversion(e.to_string()))
-            .map(|s| ProofParameters {
-                challenge: Some(digest(s)),
-                ..ProofParameters::without_challenge(config, doc.id.to_string())
-            })
+    pub fn new(config: &rocket::State<Config>, id: &PathBuf) -> Result<ProofParameters, DIDError> {
+        let did = DIDWeb::from_config(config, id)?.to_string();
+        // either compute the the challenge from the DIDDoc or from the DID if DIDDoc isn't present
+        match config.store.get(id) {
+            Ok(doc) => serde_json::to_string(&doc)
+                .map_err(|e| DIDError::ContentConversion(e.to_string()))
+                .map(|s| ProofParameters {
+                    challenge: Some(digest(s)),
+                    ..ProofParameters::defaults(config, &did)
+                }),
+            Err(DIDError::DIDNotFound(_)) => Ok(ProofParameters {
+                challenge: Some(digest(did.to_string())),
+                ..ProofParameters::defaults(config, &did)
+            }),
+            Err(err) => Err(err),
+        }
     }
-    /// Create ProofParameters without challenge
-    pub fn without_challenge(config: &rocket::State<Config>, did: String) -> ProofParameters {
+    /// Create ProofParameters with challenge from DID
+    fn defaults(config: &rocket::State<Config>, did: &str) -> ProofParameters {
         ProofParameters {
-            did,
+            did: did.to_string(),
             challenge: None,
             domain: config.external_hostname.to_string(),
-            proof_purpose: ProofPurpose::Authentication,
+            proof_purpose: ProofPurpose::AssertionMethod,
         }
     }
 }
@@ -83,6 +91,14 @@ impl fmt::Display for DIDWeb {
 }
 
 impl DIDWeb {
+    pub fn from_config(config: &rocket::State<Config>, id: &PathBuf) -> Result<DIDWeb, DIDError> {
+        DIDWeb::new(
+            &config.external_hostname,
+            &config.external_port,
+            &config.external_path,
+            &id,
+        )
+    }
     pub fn new(host: &str, port: &str, path: &str, id: &PathBuf) -> Result<DIDWeb, DIDError> {
         let port = match port.parse::<u16>() {
             Ok(port) => {

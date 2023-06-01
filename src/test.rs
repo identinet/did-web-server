@@ -18,6 +18,7 @@ use std::str::FromStr;
 
 lazy_static! {
     static ref OWNER: &'static str = "did:key:z6MksRCeBVzFcsnR4Ao7YurYSJEVxNzUPnBNkXAcQdvwmwLR";
+    static ref OWNER_VERIFICATION_METHOD: &'static str = "did:key:z6MksRCeBVzFcsnR4Ao7YurYSJEVxNzUPnBNkXAcQdvwmwLR#z6MksRCeBVzFcsnR4Ao7YurYSJEVxNzUPnBNkXAcQdvwmwLR";
     static ref NOT_OWNER: &'static str = "did:key:z6MketjFUmQyWfJUjD21peHqsxreL8VCvwnKoCcVKRWqSWCm";
     static ref NOT_OWNER_VERIFICATION_METHOD: &'static str = "did:key:z6MketjFUmQyWfJUjD21peHqsxreL8VCvwnKoCcVKRWqSWCm#z6MketjFUmQyWfJUjD21peHqsxreL8VCvwnKoCcVKRWqSWCm";
 }
@@ -40,45 +41,172 @@ fn integration_get() {
     );
 }
 
-#[test]
-fn integration_create() {
-    let client = Client::tracked(ship(Config {
+#[rocket::async_test]
+async fn integration_create() {
+    use rocket::local::asynchronous::Client;
+    let config = Config {
         owner: OWNER.to_string(),
         ..Config::default()
-    }))
-    .expect("valid rocket instance");
+    };
+    let client = Client::tracked(ship(config))
+        .await
+        .expect("valid rocket instance");
 
-    // create
-    // ------
-    // TODO: create a credential and a presentation for the DID
-    // TODO: pass the owner to the server
-    let filename = "./src/__fixtures__/valid-did.json";
-    let doc = utils::read_file(filename);
-    assert!(
-        doc.is_ok(),
-        "When a fixture is read, then it's returned successfully."
-    );
-    let doc = doc.unwrap();
+    let resolver_config = Config {
+        owner: OWNER.to_string(),
+        ..Config::default()
+    };
+    let std_resolvers = resolver_config.reslover_options.get_resolver();
+    let test_resolver = DIDWebTestResolver {
+        client: Some(&client),
+        ..DIDWebTestResolver::default()
+    };
+    let resolver = SeriesResolver {
+        resolvers: vec![&test_resolver, &std_resolvers],
+    };
+
+    // try create did as unauthorized user
+    // -------------
+    let response = client
+        .get(uri!(super::get_proof_parameters(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .dispatch()
+        .await;
+    let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+    // build a credential from the did document
+    let not_owner_key = utils::read_file("./src/__fixtures__/not-owner.jwk").unwrap();
+    let not_owner_key = JWK::from(Params::OKP(
+        serde_json::from_str::<OctetParams>(&not_owner_key).unwrap(),
+    ));
+    // build a credential from the did document
+    let mut attributes =
+        utils::json_file_to_attributes_or_panic("./src/__fixtures__/valid-did.json");
+    let id = match attributes.remove("id").unwrap() {
+        rocket::serde::json::serde_json::Value::String(id) => Some(id),
+        _ => None,
+    }
+    .unwrap();
+    let credential = utils::create_credential_or_panic(
+        &NOT_OWNER,
+        &id,
+        "https://example.com/vc/123",
+        Some(attributes),
+        None,
+        None,
+        &resolver,
+        &NOT_OWNER_VERIFICATION_METHOD,
+        &not_owner_key,
+    )
+    .await;
+    // build a presentation from the credential
+    let presentation = utils::create_presentation_or_panic(
+        &NOT_OWNER,
+        OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+        &LinkedDataProofOptions {
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
+            domain: Some(proof_parameters.domain.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
+            proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+            verification_method: Some(URI::String(NOT_OWNER_VERIFICATION_METHOD.to_string())),
+            ..LinkedDataProofOptions::default()
+        },
+        &resolver,
+        &not_owner_key,
+    )
+    .await;
+    let presentation_string = serde_json::to_string(&presentation).unwrap();
+    // update did doc via presentation
     let response = client
         .post(uri!(super::create(
             id = PathBuf::from("valid-did/did.json"),
         )))
-        .body(doc)
-        .dispatch();
+        .body(presentation_string)
+        .dispatch()
+        .await;
+    assert_eq!(
+        response.status(),
+        Status::Unauthorized,
+        "When an unauthorized ID tries to create a DID, then return 401 - Unauthorized."
+    );
+
+    // create
+    // ------
+    let response = client
+        .get(uri!(super::get_proof_parameters(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .dispatch()
+        .await;
+    let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+    // build a credential from the did document
+    let owner_key = utils::read_file("./src/__fixtures__/owner.jwk").unwrap();
+    let owner_key = JWK::from(Params::OKP(
+        serde_json::from_str::<OctetParams>(&owner_key).unwrap(),
+    ));
+    // build a credential from the did document
+    let mut attributes =
+        utils::json_file_to_attributes_or_panic("./src/__fixtures__/valid-did.json");
+    let id = match attributes.remove("id").unwrap() {
+        rocket::serde::json::serde_json::Value::String(id) => Some(id),
+        _ => None,
+    }
+    .unwrap();
+    let credential = utils::create_credential_or_panic(
+        &OWNER,
+        &id,
+        "https://example.com/vc/123",
+        Some(attributes),
+        None,
+        None,
+        &resolver,
+        &OWNER_VERIFICATION_METHOD,
+        &owner_key,
+    )
+    .await;
+    // build a presentation from the credential
+    let presentation = utils::create_presentation_or_panic(
+        &OWNER,
+        OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+        &LinkedDataProofOptions {
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
+            domain: Some(proof_parameters.domain.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
+            proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+            verification_method: Some(URI::String(OWNER_VERIFICATION_METHOD.to_string())),
+            ..LinkedDataProofOptions::default()
+        },
+        &resolver,
+        &owner_key,
+    )
+    .await;
+    let presentation_string = serde_json::to_string(&presentation).unwrap();
+    // update did doc via presentation
+    let response = client
+        .post(uri!(super::create(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .body(presentation_string)
+        .dispatch()
+        .await;
     assert_eq!(
         response.status(),
         Status::Created,
-        "When DID is created in store, then return 201 - created."
+        "When Presentation with updated DID document is sent to store, then the document is created and 201 - created is returned."
     );
-    let res = response.into_json::<ProofParameters>();
+    let proof_parameters = response.into_json::<ProofParameters>().await;
     assert!(
-        res.is_some(),
+        proof_parameters.is_some(),
         "When DID is created in store, then ProofParameters are returned."
     );
-    let res = res.unwrap();
+    let proof_parameters = proof_parameters.unwrap();
     assert_eq!(
-        res.domain, "localhost",
+        proof_parameters.domain, "localhost",
         "When DID is created in store, then the proof domain is 'localhost'."
+    );
+    assert_eq!(
+        proof_parameters.challenge.unwrap(), "d992a52400965351e261fdcfa47469cb3e0fa06cc658208c3c95bddf577dc29a",
+        "When DID is created in store, then the challenge is set to a unique and deterministic value."
     );
 
     // get
@@ -94,13 +222,14 @@ fn integration_create() {
     let docstring = serde_json::to_string(&document).unwrap();
     let response = client
         .get(uri!(super::get(id = PathBuf::from("valid-did/did.json"))))
-        .dispatch();
+        .dispatch()
+        .await;
     assert_eq!(
         response.status(),
         Status::Ok,
         "When DID exists in the store, then return 200 - ok."
     );
-    let res = response.into_json::<Document>();
+    let res = response.into_json::<Document>().await;
     assert!(
         res.is_some(),
         "When DID exists in the store, then a DID Document is returned."
@@ -114,57 +243,135 @@ fn integration_create() {
 
     // double create
     // -------------
-    let filename = "./src/__fixtures__/valid-did.json";
-    let doc = utils::read_file(filename);
-    assert!(
-        doc.is_ok(),
-        "When a fixture is read, then it's returned successfully."
-    );
-    let doc = doc.unwrap();
+    let response = client
+        .get(uri!(super::get_proof_parameters(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .dispatch()
+        .await;
+    let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+    // build a credential from the did document
+    let owner_key = utils::read_file("./src/__fixtures__/owner.jwk").unwrap();
+    let owner_key = JWK::from(Params::OKP(
+        serde_json::from_str::<OctetParams>(&owner_key).unwrap(),
+    ));
+    // build a credential from the did document
+    let mut attributes =
+        utils::json_file_to_attributes_or_panic("./src/__fixtures__/valid-did.json");
+    let id = match attributes.remove("id").unwrap() {
+        rocket::serde::json::serde_json::Value::String(id) => Some(id),
+        _ => None,
+    }
+    .unwrap();
+    let credential = utils::create_credential_or_panic(
+        &OWNER,
+        &id,
+        "https://example.com/vc/123",
+        Some(attributes),
+        None,
+        None,
+        &resolver,
+        &OWNER_VERIFICATION_METHOD,
+        &owner_key,
+    )
+    .await;
+    // build a presentation from the credential
+    let presentation = utils::create_presentation_or_panic(
+        &OWNER,
+        OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+        &LinkedDataProofOptions {
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
+            domain: Some(proof_parameters.domain.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
+            proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+            verification_method: Some(URI::String(OWNER_VERIFICATION_METHOD.to_string())),
+            ..LinkedDataProofOptions::default()
+        },
+        &resolver,
+        &owner_key,
+    )
+    .await;
+    let presentation_string = serde_json::to_string(&presentation).unwrap();
+    // update did doc via presentation
     let response = client
         .post(uri!(super::create(
             id = PathBuf::from("valid-did/did.json"),
         )))
-        .body(doc)
-        .dispatch();
+        .body(presentation_string)
+        .dispatch()
+        .await;
     assert_eq!(
         response.status(),
-        Status::Forbidden,
+        Status::Conflict,
         "When DID exists in store and is created again, then return 403 - forbidden."
     );
 
-    // TODO: create as non-owner: When create is attempted by a DID that's not the owner, then return 401 - unauthorized.
-    // TODO: create a did document in the wrong location: When a valid presentation and DID document is sent by the owner but the location of the document is wrong, then return 400 - bad request.
-}
-
-#[test]
-fn integration_create_invalid_id() {
-    let client = Client::tracked(ship(Config {
-        owner: OWNER.to_string(),
-        ..Config::default()
-    }))
-    .expect("valid rocket instance");
-
-    // create with invalid id
-    // ----------------------
-    let filename = "./src/__fixtures__/invalid-diddoc.json";
-    let doc = utils::read_file(filename);
-    assert!(
-        doc.is_ok(),
-        "When a fixture is read, then it's returned successfully."
-    );
-    let doc = doc.unwrap();
+    // create invalid id
+    // -------------
+    let response = client
+        .get(uri!(super::get_proof_parameters(
+            id = PathBuf::from("invalid-diddoc/did.json"),
+        )))
+        .dispatch()
+        .await;
+    let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+    // build a credential from the did document
+    let owner_key = utils::read_file("./src/__fixtures__/owner.jwk").unwrap();
+    let owner_key = JWK::from(Params::OKP(
+        serde_json::from_str::<OctetParams>(&owner_key).unwrap(),
+    ));
+    // build a credential from the did document
+    let mut attributes =
+        utils::json_file_to_attributes_or_panic("./src/__fixtures__/invalid-diddoc.json");
+    let id = match attributes.remove("id").unwrap() {
+        rocket::serde::json::serde_json::Value::String(id) => Some(id),
+        _ => None,
+    }
+    .unwrap();
+    let credential = utils::create_credential_or_panic(
+        &OWNER,
+        &id,
+        "https://example.com/vc/123",
+        Some(attributes),
+        None,
+        None,
+        &resolver,
+        &OWNER_VERIFICATION_METHOD,
+        &owner_key,
+    )
+    .await;
+    // build a presentation from the credential
+    let presentation = utils::create_presentation_or_panic(
+        &OWNER,
+        OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+        &LinkedDataProofOptions {
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
+            domain: Some(proof_parameters.domain.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
+            proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+            verification_method: Some(URI::String(OWNER_VERIFICATION_METHOD.to_string())),
+            ..LinkedDataProofOptions::default()
+        },
+        &resolver,
+        &owner_key,
+    )
+    .await;
+    let presentation_string = serde_json::to_string(&presentation).unwrap();
+    // update did doc via presentation
     let response = client
         .post(uri!(super::create(
             id = PathBuf::from("invalid-diddoc/did.json"),
         )))
-        .body(doc)
-        .dispatch();
+        .body(presentation_string)
+        .dispatch()
+        .await;
     assert_eq!(
-            response.status(),
+        response.status(),
             Status::BadRequest,
             "When DID doesn't exist in store but the DID doesn't match the expected did, then return 400 - bad request."
-        );
+    );
+
+    // TODO: create a did document in the wrong location: When a valid presentation and DID document is sent by the owner but the location of the document is wrong, then return 400 - bad request.
 }
 
 #[rocket::async_test]
@@ -201,45 +408,139 @@ async fn integration_update() {
     let key_not_owner = JWK::from(Params::OKP(
         serde_json::from_str::<OctetParams>(&key_not_owner).unwrap(),
     ));
+
     // create
     // ------
-    let filename = "./src/__fixtures__/valid-did.json";
-    let doc = utils::read_file(filename);
-    assert!(
-        doc.is_ok(),
-        "When a fixture is read, then it's returned successfully."
-    );
-    let doc = doc.unwrap();
+    let response = client
+        .get(uri!(super::get_proof_parameters(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .dispatch()
+        .await;
+    let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+    // build a credential from the did document
+    let owner_key = utils::read_file("./src/__fixtures__/owner.jwk").unwrap();
+    let owner_key = JWK::from(Params::OKP(
+        serde_json::from_str::<OctetParams>(&owner_key).unwrap(),
+    ));
+    // build a credential from the did document
+    let mut attributes =
+        utils::json_file_to_attributes_or_panic("./src/__fixtures__/valid-did.json");
+    let id = match attributes.remove("id").unwrap() {
+        rocket::serde::json::serde_json::Value::String(id) => Some(id),
+        _ => None,
+    }
+    .unwrap();
+    let credential = utils::create_credential_or_panic(
+        &OWNER,
+        &id,
+        "https://example.com/vc/123",
+        Some(attributes),
+        None,
+        None,
+        &resolver,
+        &OWNER_VERIFICATION_METHOD,
+        &owner_key,
+    )
+    .await;
+    // build a presentation from the credential
+    let presentation = utils::create_presentation_or_panic(
+        &OWNER,
+        OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+        &LinkedDataProofOptions {
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
+            domain: Some(proof_parameters.domain.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
+            proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+            verification_method: Some(URI::String(OWNER_VERIFICATION_METHOD.to_string())),
+            ..LinkedDataProofOptions::default()
+        },
+        &resolver,
+        &owner_key,
+    )
+    .await;
+    let presentation_string = serde_json::to_string(&presentation).unwrap();
+    // update did doc via presentation
     let response = client
         .post(uri!(super::create(
             id = PathBuf::from("valid-did/did.json"),
         )))
-        .body(doc)
+        .body(presentation_string)
         .dispatch()
         .await;
     assert_eq!(
         response.status(),
         Status::Created,
-        "When DID is created in store, then return 201 - created."
+        "When Presentation with updated DID document is sent to store, then the document is created and 201 - created is returned."
     );
-    let proof_parameters = response.into_json::<ProofParameters>().await;
-    assert!(
-        proof_parameters.is_some(),
-        "When DID is created in store, then ProofParameters are returned."
-    );
-    let proof_parameters = proof_parameters.unwrap();
+
+    // update DID as server owner (not allowed)
+    // ------
+    let response = client
+        .get(uri!(super::get_proof_parameters(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .dispatch()
+        .await;
+    let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+    // build a credential from the did document
+    let owner_key = utils::read_file("./src/__fixtures__/owner.jwk").unwrap();
+    let owner_key = JWK::from(Params::OKP(
+        serde_json::from_str::<OctetParams>(&owner_key).unwrap(),
+    ));
+    // build a credential from the did document
+    let mut attributes =
+        utils::json_file_to_attributes_or_panic("./src/__fixtures__/valid-did_update.json");
+    let id = match attributes.remove("id").unwrap() {
+        rocket::serde::json::serde_json::Value::String(id) => Some(id),
+        _ => None,
+    }
+    .unwrap();
+    let credential = utils::create_credential_or_panic(
+        &OWNER,
+        &id,
+        "https://example.com/vc/123",
+        Some(attributes),
+        None,
+        None,
+        &resolver,
+        &OWNER_VERIFICATION_METHOD,
+        &owner_key,
+    )
+    .await;
+    // build a presentation from the credential
+    let presentation = utils::create_presentation_or_panic(
+        &OWNER,
+        OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+        &LinkedDataProofOptions {
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
+            domain: Some(proof_parameters.domain.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
+            proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+            verification_method: Some(URI::String(OWNER_VERIFICATION_METHOD.to_string())),
+            ..LinkedDataProofOptions::default()
+        },
+        &resolver,
+        &owner_key,
+    )
+    .await;
+    let presentation_string = serde_json::to_string(&presentation).unwrap();
+    // update did doc via presentation
+    let response = client
+        .put(uri!(super::update(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .body(presentation_string)
+        .dispatch()
+        .await;
     assert_eq!(
-        proof_parameters.domain, "localhost",
-        "When DID is created in store, then the proof domain is 'localhost'."
+        response.status(),
+        Status::Unauthorized,
+        "When the owner of the server sends a valid Presentation but the DID Doc exists, then 401 - Unauthorized is returned."
     );
-    assert_eq!(
-            proof_parameters.challenge.unwrap(), "d992a52400965351e261fdcfa47469cb3e0fa06cc658208c3c95bddf577dc29a",
-            "When DID is created in store, then the challenge is set to a unique and deterministic value."
-        );
 
     // update
     // ------
-    // Fetch new proof parameters
     let response = client
         .get(uri!(super::get_proof_parameters(
             id = PathBuf::from("valid-did/did.json"),
@@ -313,7 +614,6 @@ async fn integration_update() {
 
     // Test expired DID Doc
     // --------------------
-    // Fetch new proof parameters
     let response = client
         .get(uri!(super::get_proof_parameters(
             id = PathBuf::from("valid-did/did.json"),
@@ -377,7 +677,6 @@ async fn integration_update() {
 
     // update without DIDDoc VC
     // ------------------------
-    // Fetch new proof parameters
     let response = client
         .get(uri!(super::get_proof_parameters(
             id = PathBuf::from("valid-did/did.json"),
@@ -433,7 +732,6 @@ async fn integration_update() {
 
     // update with non-matching ID in DID document
     // -------------------------------------------
-    // Fetch new proof parameters
     let response = client
         .get(uri!(super::get_proof_parameters(
             id = PathBuf::from("valid-did/did.json"),
@@ -497,7 +795,6 @@ async fn integration_update() {
 
     // Attempted update with holder not matching DID Doc ID
     // -------------------------------------------
-    // Fetch new proof parameters
     let response = client
         .get(uri!(super::get_proof_parameters(
             id = PathBuf::from("valid-did/did.json"),
@@ -555,7 +852,7 @@ async fn integration_update() {
             Status::Unauthorized,
             "When a valid Presentation and DID Doc is sent but the Presentation holder doesn't match the DID Doc id, then 403 - Unauthorized is returned."
         );
-
-    // TODO Test When the owner of the server sends a valid update of a DID doc, then the DID Doc is successfully updated.
-    // TODO Test When the owner of the server sends a valid Presentation but the DID Doc id doesn't match the actual DID, then 400 - Bad Request is returned.
 }
+
+#[rocket::async_test]
+async fn integration_delete() {}

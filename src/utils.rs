@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::{cmp::Ordering, fmt};
 
 use chrono::{DateTime, Utc};
@@ -232,23 +232,13 @@ pub async fn verify_issuer(
 /// new DID Document.
 pub async fn verify_presentation(
     config: &rocket::State<Config>,
-    id: PathBuf,
+    proof_parameters: ProofParameters,
     presentation: Json<Presentation>,
 ) -> Result<(VerificationResult, Credential, CredentialSubject), DIDError> {
-    let did_doc = config.store.get(&id)?;
-
-    // retrieve proof parameters required to verify the correctness of the presentation
-    let proof_parameters = ProofParameters::new(config, &did_doc)?;
-    // TODO: not sure if this is needed
-    // verify_proof(
-    //     &did_doc,
-    //     VerificationRelationship::AssertionMethod,
-    //     &presentation.proof,
-    // )?;
     let opts = LinkedDataProofOptions {
-        challenge: Some(proof_parameters.challenge.unwrap()), // fail if challenge is not present
+        challenge: proof_parameters.challenge, // fail if challenge is not present
         domain: Some(proof_parameters.domain.to_string()),
-        proof_purpose: Some(ssi::vc::ProofPurpose::Authentication),
+        proof_purpose: Some(proof_parameters.proof_purpose),
         // created: xx; // TODO this is set to now_ms, not sure if that's correct .. I guess that is should have be created max a minute ago
         ..LinkedDataProofOptions::default()
     };

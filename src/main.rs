@@ -42,13 +42,7 @@ fn get_proof_parameters(
     config: &rocket::State<Config>,
     id: PathBuf,
 ) -> Result<Json<ProofParameters>, DIDError> {
-    config
-        .store
-        .get(&id)
-        .and_then(|ref doc| ProofParameters::new(config, doc))
-        // .map_err(log("get, got error:"))
-        // .map(log("got proof parameters:"))
-        .map(Json)
+    ProofParameters::new(config, &id).map(Json)
 }
 
 #[allow(clippy::unused_unit)]
@@ -103,11 +97,13 @@ fn get_wellknown(
     get(config, PathBuf::from("/.well-known/did.json"))
 }
 
-/// Creates a DID document at the given position. The DID Document's id must match the DID the
-/// computed DID at this position otherwise the DID wouldn't be manageable.
+/// Creates a DID document at the given position. The DID Document's id must match the DID of
+/// computed DID at this position otherwise the DID wouldn't be manageable. Only the server's owner is allowed to
+/// create / register new DID documents.
 ///
-/// - `id` - id part of the did:web method as specified in https://w3c-ccg.github.io/did-method-web/
-/// - `doc` - JSON-LD DID Document as specified in https://w3c.github.io/did-core/
+/// * `config` - the server configuration.
+/// * `id` - path to the identity.
+/// * `presentation` - verifable presentation that holds the updated DID Document.
 /// - returns DID as JSON string
 ///
 /// # TODO
@@ -116,37 +112,44 @@ fn get_wellknown(
 ///   key
 /// * Support subfolder so that the DIDs don't only have to live in the top-level folder
 /// * implement .well-known support
-#[post("/<id..>", data = "<doc>")]
+#[post("/<id..>", data = "<presentation>")]
 // #[post("/<id..>", data = "<presentation>")]
-fn create(
+async fn create(
     config: &rocket::State<Config>,
     id: PathBuf,
-    doc: Json<Document>,
-    // presentation: Json<Presentation>,
+    presentation: Json<Presentation>,
 ) -> Result<CustomStatus<Json<ProofParameters>>, DIDError> {
-    let _proof_parameters = ProofParameters::without_challenge(config, config.owner.clone());
-    // TODO the presentation must be signed by the owner's DID / holder
-    // TODO the VC must be a valid DID doc for the ID + it must also be signed by the owner
+    // only the server's owner is allowed to create DIDs
+    let controlling_did = &config.owner;
+    verify_issuer(
+        config,
+        controlling_did,
+        VerificationRelationship::AssertionMethod,
+        &presentation,
+    )
+    .await?;
+    println!("exit1");
+    let proof_parameters = ProofParameters::new(config, &id)?;
+    let (_result, _vc, did_doc) =
+        verify_presentation(config, proof_parameters, presentation).await?;
+    println!("exit2");
 
-    // guard to ensure that the DID is manageable
-    let computed_did = match DIDWeb::did_from_config(config, &id) {
-        Ok(did) => did,
-        Err(e) => return Err(e),
-    };
-    if doc.id != format!("{}", computed_did) {
-        return Err(DIDError::DIDMismatch(format!(
-            "DIDs don't match - expected: {} received: {}",
-            computed_did, doc.id
-        )));
+    // INFO: unsure how to easily convert a CredentialSubject into a Document. Via json encoding? - not beautiful!!
+    let did_doc = serde_json::to_string(&did_doc)
+        .ok()
+        // .map(log("json"))
+        .and_then(|s| serde_json::from_str::<Document>(&s).ok());
+    println!("exit3");
+    match did_doc {
+        Some(document) => config
+            .store
+            .create(&id, document)
+            .and_then(|_| ProofParameters::new(config, &id))
+            .map_err(log("post, got error:"))
+            .map(Json)
+            .map(CustomStatus::Created),
+        None => Err(DIDError::DIDDocMissing("DID Doc invalid".to_string())),
     }
-    let document = doc.into_inner();
-    config
-        .store
-        .create(&id, document)
-        .and_then(|doc| ProofParameters::new(config, &doc))
-        .map_err(log("post, got error:"))
-        .map(Json)
-        .map(CustomStatus::Created)
 }
 
 /// Updates a DID Document if the identity is authorized to perform this operation.
@@ -165,24 +168,19 @@ async fn update(
     presentation: Json<Presentation>,
 ) -> Result<Json<ProofParameters>, DIDError> {
     // The user is the only one allowed to update the personal DID document
-    let did = format!(
-        "{}",
-        DIDWeb::new(
-            &config.external_hostname,
-            &config.external_port,
-            &config.external_path,
-            &id,
-        )?
-    );
+    let controlling_did = DIDWeb::from_config(&config, &id)?.to_string();
     verify_issuer(
         config,
-        &did,
+        &controlling_did,
         VerificationRelationship::AssertionMethod,
         &presentation,
     )
     .await?;
 
-    let (_result, _vc, did_doc) = verify_presentation(config, id.clone(), presentation).await?;
+    // retrieve proof parameters required to verify the correctness of the presentation
+    let proof_parameters = ProofParameters::new(config, &id)?;
+    let (_result, _vc, did_doc) =
+        verify_presentation(config, proof_parameters, presentation).await?;
 
     // INFO: unsure how to easily convert a CredentialSubject into a Document. Via json encoding? - not beautiful!!
     let did_doc = serde_json::to_string(&did_doc)
@@ -193,7 +191,7 @@ async fn update(
         Some(document) => config
             .store
             .update(&id, document)
-            .and_then(|doc| ProofParameters::new(config, &doc))
+            .and_then(|_| ProofParameters::new(config, &id))
             .map_err(log("post, got error:"))
             .map(Json),
         None => Err(DIDError::DIDDocMissing("DID Doc invalid".to_string())),
