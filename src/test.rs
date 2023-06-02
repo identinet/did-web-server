@@ -855,4 +855,288 @@ async fn integration_update() {
 }
 
 #[rocket::async_test]
-async fn integration_delete() {}
+async fn integration_delete() {
+    use rocket::local::asynchronous::Client;
+    let config = Config {
+        owner: OWNER.to_string(),
+        ..Config::default()
+    };
+    let client = Client::tracked(ship(config))
+        .await
+        .expect("valid rocket instance");
+
+    let resolver_config = Config {
+        owner: OWNER.to_string(),
+        ..Config::default()
+    };
+    let std_resolvers = resolver_config.reslover_options.get_resolver();
+    let test_resolver = DIDWebTestResolver {
+        client: Some(&client),
+        ..DIDWebTestResolver::default()
+    };
+    let resolver = SeriesResolver {
+        resolvers: vec![&test_resolver, &std_resolvers],
+    };
+
+    // create
+    // ------
+    let response = client
+        .get(uri!(super::get_proof_parameters(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .dispatch()
+        .await;
+    let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+    // build a credential from the did document
+    let owner_key = utils::read_file("./src/__fixtures__/owner.jwk").unwrap();
+    let owner_key = JWK::from(Params::OKP(
+        serde_json::from_str::<OctetParams>(&owner_key).unwrap(),
+    ));
+    // build a credential from the did document
+    let mut attributes =
+        utils::json_file_to_attributes_or_panic("./src/__fixtures__/valid-did.json");
+    let id = match attributes.remove("id").unwrap() {
+        rocket::serde::json::serde_json::Value::String(id) => Some(id),
+        _ => None,
+    }
+    .unwrap();
+    let credential = utils::create_credential_or_panic(
+        &OWNER,
+        &id,
+        "https://example.com/vc/123",
+        Some(attributes),
+        None,
+        None,
+        &resolver,
+        &OWNER_VERIFICATION_METHOD,
+        &owner_key,
+    )
+    .await;
+    // build a presentation from the credential
+    let presentation = utils::create_presentation_or_panic(
+        &OWNER,
+        OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+        &LinkedDataProofOptions {
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
+            domain: Some(proof_parameters.domain.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
+            proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+            verification_method: Some(URI::String(OWNER_VERIFICATION_METHOD.to_string())),
+            ..LinkedDataProofOptions::default()
+        },
+        &resolver,
+        &owner_key,
+    )
+    .await;
+    let presentation_string = serde_json::to_string(&presentation).unwrap();
+    // update did doc via presentation
+    let response = client
+        .post(uri!(super::create(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .body(presentation_string)
+        .dispatch()
+        .await;
+    assert_eq!(
+        response.status(),
+        Status::Created,
+        "When Presentation with updated DID document is sent to store, then the document is created and 201 - created is returned."
+    );
+
+    // delete DID as did-owner, not server-owner
+    // ------
+    let response = client
+        .get(uri!(super::get_proof_parameters(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .dispatch()
+        .await;
+    let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+    // build a credential from the did document
+    let did_owner_key = utils::read_file("./src/__fixtures__/valid-did.jwk").unwrap();
+    let did_owner_key = JWK::from(Params::OKP(
+        serde_json::from_str::<OctetParams>(&did_owner_key).unwrap(),
+    ));
+    // build a credential from the did document
+    let mut attributes =
+        utils::json_file_to_attributes_or_panic("./src/__fixtures__/valid-did.json");
+    let id = match attributes.remove("id").unwrap() {
+        rocket::serde::json::serde_json::Value::String(id) => Some(id),
+        _ => None,
+    }
+    .unwrap();
+    let credential = utils::create_credential_or_panic(
+        &id,
+        &id,
+        "https://example.com/vc/123",
+        None,
+        None,
+        None,
+        &resolver,
+        "did:web:localhost%3A8000:valid-did#controller",
+        &did_owner_key,
+    )
+    .await;
+    // build a presentation from the credential
+    let presentation = utils::create_presentation_or_panic(
+        &id,
+        OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+        &LinkedDataProofOptions {
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
+            domain: Some(proof_parameters.domain.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
+            proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+            verification_method: Some(URI::String(
+                "did:web:localhost%3A8000:valid-did#controller".to_string(),
+            )),
+            ..LinkedDataProofOptions::default()
+        },
+        &resolver,
+        &did_owner_key,
+    )
+    .await;
+    let presentation_string = serde_json::to_string(&presentation).unwrap();
+    // update did doc via presentation
+    let response = client
+        .delete(uri!(super::delete(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .body(presentation_string)
+        .dispatch()
+        .await;
+    assert_eq!(
+        response.status(),
+        Status::Unauthorized,
+        "When the owner of the DID, not the owner of the server, tries to delete it, then 403 - Unauthorized is returned."
+    );
+
+    // delete DID as server-owner
+    // ------
+    let response = client
+        .get(uri!(super::get_proof_parameters(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .dispatch()
+        .await;
+    let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+    // build a credential from the did document
+    let owner_key = utils::read_file("./src/__fixtures__/owner.jwk").unwrap();
+    let owner_key = JWK::from(Params::OKP(
+        serde_json::from_str::<OctetParams>(&owner_key).unwrap(),
+    ));
+    // build a credential from the did document
+    let mut attributes =
+        utils::json_file_to_attributes_or_panic("./src/__fixtures__/valid-did.json");
+    let id = match attributes.remove("id").unwrap() {
+        rocket::serde::json::serde_json::Value::String(id) => Some(id),
+        _ => None,
+    }
+    .unwrap();
+    let credential = utils::create_credential_or_panic(
+        &OWNER,
+        &id,
+        "https://example.com/vc/123",
+        None,
+        None,
+        None,
+        &resolver,
+        &OWNER_VERIFICATION_METHOD,
+        &owner_key,
+    )
+    .await;
+    // build a presentation from the credential
+    let presentation = utils::create_presentation_or_panic(
+        &OWNER,
+        OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+        &LinkedDataProofOptions {
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
+            domain: Some(proof_parameters.domain.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
+            proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+            verification_method: Some(URI::String(OWNER_VERIFICATION_METHOD.to_string())),
+            ..LinkedDataProofOptions::default()
+        },
+        &resolver,
+        &owner_key,
+    )
+    .await;
+    let presentation_string = serde_json::to_string(&presentation).unwrap();
+    // update did doc via presentation
+    let response = client
+        .delete(uri!(super::delete(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .body(presentation_string)
+        .dispatch()
+        .await;
+    assert_eq!(
+        response.status(),
+        Status::Ok,
+        "When the owner of server tries to delete the DID, then 200 - OK is returned."
+    );
+
+    // delete non-existing DID
+    // ------
+    let response = client
+        .get(uri!(super::get_proof_parameters(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .dispatch()
+        .await;
+    let proof_parameters = response.into_json::<ProofParameters>().await.unwrap();
+    // build a credential from the did document
+    let owner_key = utils::read_file("./src/__fixtures__/owner.jwk").unwrap();
+    let owner_key = JWK::from(Params::OKP(
+        serde_json::from_str::<OctetParams>(&owner_key).unwrap(),
+    ));
+    // build a credential from the did document
+    let mut attributes =
+        utils::json_file_to_attributes_or_panic("./src/__fixtures__/valid-did.json");
+    let id = match attributes.remove("id").unwrap() {
+        rocket::serde::json::serde_json::Value::String(id) => Some(id),
+        _ => None,
+    }
+    .unwrap();
+    let credential = utils::create_credential_or_panic(
+        &OWNER,
+        &id,
+        "https://example.com/vc/123",
+        None,
+        None,
+        None,
+        &resolver,
+        &OWNER_VERIFICATION_METHOD,
+        &owner_key,
+    )
+    .await;
+    // build a presentation from the credential
+    let presentation = utils::create_presentation_or_panic(
+        &OWNER,
+        OneOrMany::One(ssi::vc::CredentialOrJWT::Credential(credential)),
+        &LinkedDataProofOptions {
+            type_: Some(ProofSuiteType::Ed25519Signature2020),
+            domain: Some(proof_parameters.domain.to_string()),
+            challenge: Some(proof_parameters.challenge.unwrap()),
+            proof_purpose: Some(proof_parameters.proof_purpose.to_owned()),
+            verification_method: Some(URI::String(OWNER_VERIFICATION_METHOD.to_string())),
+            ..LinkedDataProofOptions::default()
+        },
+        &resolver,
+        &owner_key,
+    )
+    .await;
+    let presentation_string = serde_json::to_string(&presentation).unwrap();
+    // update did doc via presentation
+    let response = client
+        .delete(uri!(super::delete(
+            id = PathBuf::from("valid-did/did.json"),
+        )))
+        .body(presentation_string)
+        .dispatch()
+        .await;
+    assert_eq!(
+        response.status(),
+        Status::NotFound,
+        "When a non-existing DID is attempted to be deleted, then 404 - Not Found is returned."
+    );
+}

@@ -1,17 +1,11 @@
 # Doing
 
 - [i] Implement CLI client in JS
-- [i] Implement ownership for create, update and delete endpoints
-  - [x] I need to observe the owner's DID first in the configuration of the
-        server
-  - [x] I need to adjust the file format for creating DIDs
-  - [x] I need to process the authentication request as I did for the update
-        method
-  - [x] I need to add tests that verify the behavior
-  - [ ] Implement delete authentication
 
 # Do
 
+- [ ] Add logging to service
+- [ ] Create a nix package for did-web-server
 - [ ] Create release of the binary
 - [ ] Create release of the binary in a docker container
 - [ ] Create helm chart / kustomize configuration for hosting the chart
@@ -34,8 +28,19 @@
       and authentications that were used for audit purposes
 - [ ] Document that credentials should have a validUntil timestamp to mitigate
       "replay attacks", i.e. the same request being sent twice
+- [ ] Create additional admin endpoints:
+  - retrieve the list of all registered identities
 
 # Done
+
+- [x] Implement ownership for create, update and delete endpoints
+  - [x] I need to observe the owner's DID first in the configuration of the
+        server
+  - [x] I need to adjust the file format for creating DIDs
+  - [x] I need to process the authentication request as I did for the update
+        method
+  - [x] I need to add tests that verify the behavior
+  - [x] Implement delete authentication
 
 - [x] Check SCC integration .. is everything correct?
 - [x] Add cliff and gh as release tools

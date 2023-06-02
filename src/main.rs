@@ -128,18 +128,15 @@ async fn create(
         &presentation,
     )
     .await?;
-    println!("exit1");
     let proof_parameters = ProofParameters::new(config, &id)?;
     let (_result, _vc, did_doc) =
         verify_presentation(config, proof_parameters, presentation).await?;
-    println!("exit2");
 
     // INFO: unsure how to easily convert a CredentialSubject into a Document. Via json encoding? - not beautiful!!
     let did_doc = serde_json::to_string(&did_doc)
         .ok()
         // .map(log("json"))
         .and_then(|s| serde_json::from_str::<Document>(&s).ok());
-    println!("exit3");
     match did_doc {
         Some(document) => config
             .store
@@ -206,32 +203,29 @@ async fn update(
 /// * `config` - the server configuration.
 /// * `id` - path to the identity.
 /// * `presentation` - verifable presentation that holds the updated DID Document.
-#[delete("/<id..>", data = "<_presentation>")]
+#[delete("/<id..>", data = "<presentation>")]
 async fn delete(
     config: &rocket::State<Config>,
     id: PathBuf,
-    _presentation: Json<Presentation>,
-) -> Result<Json<String>, DIDError> {
-    // verifyAuthentication(config, ) - check user's DID that was used for signing presentation and credentials
-    // verifyAuthorization(config, ) - check if the administrator's DID was used
-    // verifyIntegrity(config, )
-    // verifyPresentation(config, )
-    // retrieve proof parameters required to verify the correctness of the presentation
-
-    // verify authorization
-
-    // test existence - if not, then return 404
-    // try deletion - return 503 if something goes wrong, otherwise 200
-    let computed_did = match DIDWeb::did_from_config(config, &id) {
-        Ok(did) => did,
-        Err(e) => return Err(e),
-    };
+    presentation: Json<Presentation>,
+) -> Result<Json<ProofParameters>, DIDError> {
+    // only the server's owner is allowed to create DIDs
+    let controlling_did = &config.owner;
+    verify_issuer(
+        config,
+        controlling_did,
+        VerificationRelationship::AssertionMethod,
+        &presentation,
+    )
+    .await?;
+    let proof_parameters = ProofParameters::new(config, &id)?;
+    verify_presentation(config, proof_parameters, presentation).await?;
     config
         .store
         .remove(&id)
+        .and_then(|_| ProofParameters::new(config, &id))
         .map_err(log("delete, got error:"))
-        // Return the DID
-        .map(|_| Json(computed_did.to_string()))
+        .map(Json)
 }
 
 #[launch]
