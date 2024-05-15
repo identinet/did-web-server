@@ -1,0 +1,308 @@
+# OpenAPI Specification Explained: https://learn.openapis.org/specification/
+# Documentation: https://spec.openapis.org/oas/v3.1.0.html
+# Learning OpenAPI: https://redoc.ly/docs/resources/learning-openapi/
+# HTTP status codes: https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
+# HTTP methods: https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol#Request_methods
+openapi: 3.1.0
+info:
+  version: "0.0.1"
+  title: did-web-server API documentation
+  description: |
+    This is the Open API specification for [did-web-server](https://dws.identinet.io).
+
+    # Introduction
+
+    **did-web-server** is an HTTP server for managing DID Documents for the
+    [did:web](https://w3c-ccg.github.io/did-method-web/) method in a self-sovereign manner. did:web is a straightforward
+    DID method that use DNS and HTTP servers to host DID Documents.
+
+    Unlike other DID methods, did:web doesn't require a blockchain to store identifier states. It uses an HTTP server,
+    which is cost effective to operate and leverages established protocols and software libraries.
+
+    However, traditional HTTP servers are centrally managed and do not allow users to managed hosted documents, making
+    decentralized identifier management challenging. did-web-server addresses this issue by being the first DID-centered
+    HTTP server, enabling self-sovereign management for owners of did:web identifiers. It is compatible with existing
+    DID resolver implementations and adds support for the create, update and deactivate methods that are left
+    unspecified in the [did:web](https://w3c-ccg.github.io/did-method-web/) specification.
+
+    # Hosted Offering
+
+    identinet is preparing an enterprise hosted offering of did-web-server for custom domain names. Contact
+    jan-christoph.ebersbach@identinet.io if you are interested in using this service.
+
+    Furthermore, a free to use identity service is being prepared at [id.identinet.io](https://id.identinet.io).
+
+    # Self-Hosting
+
+    **did-web-server** can be self-hosted on your own infrastructure. Further information is provided in the [docs
+    section](/docs).
+
+  license:
+    name: Proprietary
+    identifier: Proprietary # this is a 3.1.0 spec feature
+    # url: https://identinet.io/license
+  contact:
+    name: identinet GmbH
+    email: support@identinet.io
+    url: https://identinet.io
+
+servers:
+  - url: https://id.identinet.io
+    description: identinet ID service
+  # - url: https://id.dev.identinet.io
+  #   description: identinet development server
+  # - url: https://id.staging.identinet.io
+  #   description: identinet staging server
+  - url: https://id.localhost:3000
+    description: local development server
+
+paths:
+  /{id}/did.json:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/ID"
+    get:
+      operationId: getDIDDoc
+      summary: Read DID Document
+      description: |
+        Corresponds to the Read (Resolve) method speficied at https://w3c-ccg.github.io/did-method-web/#read-resolve.
+      externalDocs:
+        description: did:web method specification
+        url: https://w3c-ccg.github.io/did-method-web/#read-resolve
+      responses:
+        "200":
+          description: Returns DID Document.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DIDDoc"
+              examples:
+                diddoc:
+                  summary: DID Document
+                  value:
+                    {
+                      "@context":
+                        [
+                          "https://www.w3.org/ns/did/v1",
+                          "https://w3id.org/security/suites/jws-2020/v1",
+                        ],
+                      "id": "did:web:example.com",
+                      "verificationMethod":
+                        [
+                          {
+                            "id": "did:web:example.com#key-0",
+                            "type": "JsonWebKey2020",
+                            "controller": "did:web:example.com",
+                            "publicKeyJwk":
+                              {
+                                "kty": "OKP",
+                                "crv": "Ed25519",
+                                "x": "0-e2i2_Ua1S5HbTYnVB0lj2Z2ytXu2-tYmDFf8f5NjU",
+                              },
+                          },
+                          {
+                            "id": "did:web:example.com#key-1",
+                            "type": "JsonWebKey2020",
+                            "controller": "did:web:example.com",
+                            "publicKeyJwk":
+                              {
+                                "kty": "OKP",
+                                "crv": "X25519",
+                                "x": "9GXjPGGvmRq9F6Ng5dQQ_s31mfhxrcNZxRGONrmH30k",
+                              },
+                          },
+                          {
+                            "id": "did:web:example.com#key-2",
+                            "type": "JsonWebKey2020",
+                            "controller": "did:web:example.com",
+                            "publicKeyJwk":
+                              {
+                                "kty": "EC",
+                                "crv": "P-256",
+                                "x": "38M1FDts7Oea7urmseiugGW7tWc3mLpJh6rKe7xINZ8",
+                                "y": "nDQW6XZ7b_u2Sy9slofYLlG03sOEoug3I0aAPQ0exs4",
+                              },
+                          },
+                        ],
+                      "authentication":
+                        [
+                          "did:web:example.com#key-0",
+                          "did:web:example.com#key-2",
+                        ],
+                      "assertionMethod":
+                        [
+                          "did:web:example.com#key-0",
+                          "did:web:example.com#key-2",
+                        ],
+                      "keyAgreement":
+                        [
+                          "did:web:example.com#key-1",
+                          "did:web:example.com#key-2",
+                        ],
+                    }
+        "400":
+          description: Bad Request - client error.
+        "404":
+          description: Not Found - client error.
+        "500":
+          description: Internal Server Error.
+    post:
+      operationId: createIdentifier
+      summary: Register identifier
+      description: |
+        Corresponds to the Create (Register) method speficied at https://w3c-ccg.github.io/did-method-web/#create-register.
+      externalDocs:
+        description: did:web method specification
+        url: https://w3c-ccg.github.io/did-method-web/#create-register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifiablePresentation"
+      responses:
+        "200":
+          description: Identifier created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DIDDoc"
+        "400":
+          description: Bad Request - client error.
+        "401":
+          description: Unauthorized - client error.
+        "404":
+          description: Not Found - client error.
+        "500":
+          description: Internal Server Error.
+    put:
+      operationId: updateIdentifier
+      summary: Update DID Document
+      description: |
+        Corresponds to the Update method speficied at https://w3c-ccg.github.io/did-method-web/#update.
+      externalDocs:
+        description: did:web method specification
+        url: https://w3c-ccg.github.io/did-method-web/#update
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifiablePresentation"
+      responses:
+        "200":
+          description: Identifier updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DIDDoc"
+        "400":
+          description: Bad Request - client error.
+        "401":
+          description: Unauthorized - client error.
+        "404":
+          description: Not Found - client error.
+        "500":
+          description: Internal Server Error.
+    delete:
+      operationId: deactivateIdentifier
+      summary: Deactivate Identifier
+      description: |
+        Corresponds to the Deactivate (Revoke) method speficied at https://w3c-ccg.github.io/did-method-web/#deactivate-revoke.
+      externalDocs:
+        description: did:web method specification
+        url: https://w3c-ccg.github.io/did-method-web/#deactivate-revoke
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifiablePresentation"
+      responses:
+        "200":
+          description: Identifier deactivated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DID"
+        "400":
+          description: Bad Request - client error.
+        "401":
+          description: Unauthorized - client error.
+        "404":
+          description: Not Found - client error.
+        "500":
+          description: Internal Server Error.
+
+components:
+  schemas:
+    ID:
+      type: string
+      description: |
+        An identifier.
+      example: user1
+      # minLength: 1
+      # maxLength: 64
+
+    DID:
+      type: string
+      description: |
+        Decentralized Identifier (DID), see https://w3c.github.io/did-core/.
+      # example: did:web:example.com:user1
+      examples:
+        domain:
+          summary: Domain DID
+          value: did:web:example.com
+        path:
+          summary: DID with path
+          value: did:web:example.com:user1
+      # minLength: 5
+      # maxLength: 64
+
+    DIDDoc:
+      type: object
+      title: DID Document
+      description: |
+        DID Document, see https://w3c.github.io/did-core/.
+      required:
+        - id
+      properties:
+        id:
+          $ref: "#/components/schemas/DID"
+
+    VerifiableCredential:
+      type: object
+      description: |
+        W3C Verifiable Credential, see https://w3c.github.io/vc-data-model/.
+      required:
+        - type
+        - credentialSubject
+        - proof
+      properties:
+        type:
+          type: array
+          items:
+            type: string
+          example: VerifableCredential
+        credentialSubject:
+          $ref: "#/components/schemas/DIDDoc"
+        proof:
+          type: object
+          example: {}
+
+    VerifiablePresentation:
+      type: object
+      description: |
+        W3C Verifiable Presentation, see https://w3c.github.io/vc-data-model/.
+      required:
+        - type
+        - verifiableCredential
+        - proof
+      properties:
+        type:
+          type: string
+          example: VerifablePresentation
+        verifiableCredential:
+          $ref: "#/components/schemas/VerifiableCredential"
+        proof:
+          type: object

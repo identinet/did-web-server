@@ -21,3 +21,5 @@ target/
 
 # ignore code coverage data
 /client/cov_profile/
+
+/.direnv

@@ -1,0 +1,37 @@
+#!/usr/bin/env just --justfile
+# Documentation: https://just.systems/man/en/
+
+set shell := ['nu', '-c']
+
+# Integration with nodejs package.json scripts, see https://just.systems/man/en/chapter_65.html
+
+export PATH := env('PWD') / 'node_modules/.bin:' + env('PATH')
+
+# Print this help
+default:
+    @just -l
+
+# Format Justfile
+format:
+    @just --fmt --unstable
+
+# Install application dependencies
+install:
+    yarn install
+
+# Run and watch application for development purposes
+dev:
+    yarn run start
+
+# Build production application
+build:
+    #!/home/jceb/Documents/Projects/just-docker/env --image=node:20 bash
+    yarn run build
+
+# Serve production application
+serve:
+    yarn run serve
+
+# Clean files
+clean:
+    yarn run clear
