@@ -1,0 +1,25 @@
+@startuml ../static/figures/did-web-server-context
+!include ./styles/styles.puml
+
+!include ./styles/c4/C4_Context.puml
+!include ./styles/sprites/icons/font-awesome-6/magnifying_glass.puml
+!include ./styles/sprites/icons/font-awesome-6/server.puml
+!include ./styles/sprites/icons/font-awesome-6/user.puml
+!include ./styles/sprites/icons/font-awesome-6/user_gear.puml
+!include ./styles/sprites/icons/font-awesome-6/building.puml
+!include ./styles/sprites/icons/font-awesome-6/wallet.puml
+
+Person(admin, "Administrator", "Owner of server instance", $sprite="user_gear")
+Person(person, "Person", "Controller of DID identifier", $sprite="user")
+System_Ext(wallet, "Wallet", "Store for controlling key of DID identifier", $sprite="wallet")
+System(system, "did-web-server", "Self-Sovereign did:web identity server", $sprite="server")
+System_Ext(resolver, "DID Resolver", "did:web compatible DID resolver", $sprite="magnifying_glass")
+
+Rel(person, wallet, "manages", "")
+Rel(wallet, system, "updates DID Document", "")
+Rel(person, admin, "submits request for did:web identifier", "")
+Rel(admin, system, "creates and deactivates DIDs", "")
+Rel(resolver, system, "resolves DIDs", "")
+
+SHOW_LEGEND()
+@enduml

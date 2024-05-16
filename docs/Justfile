@@ -23,9 +23,18 @@ install:
 dev:
     yarn run start
 
+# Update figures
+update-figures:
+    docker run -u $"(id -u):(id -g)" -v $"($env.PWD):/app" -w /app plantuml/plantuml:1.2024.4 -charset UTF-8 -nbthread auto -failfast2 -tsvg $"-DDATE=(date now | format date "%Y-%m-%d")" figures/*.puml
+    rm -rpf ?
+
+# Watch for changes and regenerate figures
+watch-figures: update-figures
+    watch figures --glob=**/*.puml {|| just update-figures }
+
 # Build production application
-build:
-    #!/home/jceb/Documents/Projects/just-docker/env --image=node:20 bash
+build: update-figures
+    # #!/usr/share/just-docker/env --image=node:20 bash
     yarn run build
 
 # Serve production application

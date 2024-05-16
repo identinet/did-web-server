@@ -1,6 +1,26 @@
 ---
+title: Introduction
 sidebar_position: 1
 ---
+
+# Introduction
+
+**did-web-server** is an HTTP server for managing DID Documents for the
+[did:web](https://w3c-ccg.github.io/did-method-web/) method in a self-sovereign
+manner. did:web is a straightforward DID method that use DNS and HTTP servers to
+host DID Documents.
+
+Unlike other DID methods, did:web doesn't require a blockchain to store
+identifier states. It uses an HTTP server, which is cost effective to operate
+and leverages established protocols and software libraries.
+
+However, traditional HTTP servers are centrally managed and do not allow users
+to managed hosted documents, making decentralized identifier management
+challenging. did-web-server addresses this issue by being the first DID-centered
+HTTP server, enabling self-sovereign management for owners of did:web
+identifiers.
+
+![Architecture diagram](/figures/did-web-server-context.svg)
 
 # Tutorial Intro
 
