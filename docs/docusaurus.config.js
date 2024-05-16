@@ -190,19 +190,24 @@ const config = {
     }),
   plugins: [
     [
-      '@docusaurus/plugin-client-redirects',
-      {
-        fromExtensions: ['html', 'htm'], // /myPage.html -> /myPage
-        toExtensions: ['exe', 'zip'], // /myAsset -> /myAsset.zip (if latter exists)
-        redirects: [
-          // Start in the docs folder
-          {
-            to: '/',
-            from: '/docs/intro',
-          },
-        ],
-      },
+      // https://github.com/praveenn77/docusaurus-lunr-search
+      'docusaurus-lunr-search',
+      {}
     ],
+    // [
+    //   '@docusaurus/plugin-client-redirects',
+    //   {
+    //     fromExtensions: ['html', 'htm'], // /myPage.html -> /myPage
+    //     toExtensions: ['exe', 'zip'], // /myAsset -> /myAsset.zip (if latter exists)
+    //     redirects: [
+    //       // Start in the docs folder
+    //       {
+    //         to: '/',
+    //         from: '/docs',
+    //       },
+    //     ],
+    //   },
+    // ],
   ],
 };
 
