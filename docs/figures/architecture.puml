@@ -1,4 +1,4 @@
-@startuml ../static/figures/did-web-server-context
+@startuml ../public/figures/did-web-server-context
 !include ./styles/styles.puml
 
 !include ./styles/c4/C4_Context.puml

@@ -1,8 +1,8 @@
 ---
-sidebar_position: 3
+title: Update a DID
+sidebar:
+  order: 3
 ---
-
-# Update a DID
 
 Documents are **groups of pages** connected through:
 

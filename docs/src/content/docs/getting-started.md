@@ -1,8 +1,6 @@
 ---
-sidebar_position: 2
+title: Getting Started
 ---
-
-# Getting Started
 
 Get started by **creating a DID for the server's owner**.
 
@@ -38,7 +36,7 @@ Prepare to start a local test server via Docker that serves DIDs on your
 computer and stores DIDs on the local file system. The first step is to create a
 configuration file called `.env` with the following contents:
 
-```dotenv title=".env"
+```bash title=".env"
 DID_WEB_SERVER_OWNER=did:key:xxxx # Put the created or existing DID here.
 DID_WEB_SERVER_EXTERNAL_HOSTNAME=id.localhost # Hostname and port determine the DIDs that are managed by this server, e.g. did:web:id.localhost%3A3000:xyz.
 DID_WEB_SERVER_EXTERNAL_PORT=3000 # Set DID_WEB_SERVER_PORT and DID_WEB_SERVER_EXTERNAL_PORT to the same value for this test.

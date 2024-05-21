@@ -1,9 +1,6 @@
 ---
 title: Introduction
-sidebar_position: 1
 ---
-
-# Introduction
 
 **did-web-server** is an HTTP server for managing DID Documents for the
 [did:web](https://w3c-ccg.github.io/did-method-web/) method in a self-sovereign

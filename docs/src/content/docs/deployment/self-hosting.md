@@ -1,8 +1,8 @@
 ---
-sidebar_position: 2
+title: Self-Hosting
+sidebar:
+  order: 2
 ---
-
-# Self-Hosting
 
 Docusaurus is a **static-site-generator** (also called
 **[Jamstack](https://jamstack.org/)**).

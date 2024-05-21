@@ -1,8 +1,7 @@
 ---
+title: Configuration
 sidebar_position: 3
 ---
-
-# Configuration
 
 The following configuration options can be set:
 

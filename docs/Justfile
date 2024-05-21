@@ -37,9 +37,13 @@ build: update-figures
     # #!/usr/share/just-docker/env --image=node:20 bash
     yarn run build
 
-# Serve production application
-serve:
-    yarn run serve
+# Preview production build
+preview:
+    yarn run preview
+
+# Update dependencies
+update-dependencies:
+    yarn upgrade-interactive --latest
 
 # Clean files
 clean:

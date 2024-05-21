@@ -1,8 +1,8 @@
 ---
-sidebar_position: 4
+title: Deactivate a DID
+sidebar:
+  order: 4
 ---
-
-# Deactivate a DID
 
 Docusaurus creates a **page for each blog post**, but also a **blog index
 page**, a **tag system**, an **RSS** feed...

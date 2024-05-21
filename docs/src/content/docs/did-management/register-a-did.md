@@ -1,8 +1,8 @@
 ---
-sidebar_position: 2
+title: Register a DID
+sidebar:
+  order: 2
 ---
-
-# Register a DID
 
 Add **Markdown or React** files to `src/pages` to create a **standalone page**:
 
