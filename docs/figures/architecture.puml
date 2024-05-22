@@ -1,6 +1,8 @@
 @startuml ../public/figures/did-web-server-context
 !include ./styles/styles.puml
 
+title "Context diagram of did-web-server"
+
 !include ./styles/c4/C4_Context.puml
 !include ./styles/sprites/icons/font-awesome-6/magnifying_glass.puml
 !include ./styles/sprites/icons/font-awesome-6/server.puml
@@ -11,8 +13,8 @@
 
 Person(admin, "Administrator", "Owner of server instance", $sprite="user_gear")
 Person(person, "Person", "Controller of DID identifier", $sprite="user")
-System_Ext(wallet, "Wallet", "Store for controlling key of DID identifier", $sprite="wallet")
-System(system, "did-web-server", "Self-Sovereign did:web identity server", $sprite="server")
+System_Ext(wallet, "Wallet", "Store of controlling keys for DID identifier", $sprite="wallet")
+System(system, "did-web-server", "Self-sovereign did:web identifier store", $sprite="server")
 System_Ext(resolver, "DID Resolver", "did:web compatible DID resolver", $sprite="magnifying_glass")
 
 Rel(person, wallet, "manages", "")
