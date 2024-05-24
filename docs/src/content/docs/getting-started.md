@@ -36,23 +36,23 @@ called `.env` with the following contents:
 
 ```bash title=".env"
 DID_WEB_SERVER_OWNER=did:key:xxxx # Put the created or existing DID here.
-DID_WEB_SERVER_EXTERNAL_HOSTNAME=id.localhost # Hostname and port determine the DIDs that are managed by this server, e.g. did:web:id.localhost%3A3000:xyz.
+DID_WEB_SERVER_EXTERNAL_HOSTNAME=localhost # Hostname and port determine the DIDs that are managed by this server, e.g. did:web:id.localhost%3A3000:xyz.
 DID_WEB_SERVER_EXTERNAL_PORT=3000 # Set DID_WEB_SERVER_PORT and DID_WEB_SERVER_EXTERNAL_PORT to the same value for this test.
 DID_WEB_SERVER_PORT=3000 # Set DID_WEB_SERVER_PORT and DID_WEB_SERVER_EXTERNAL_PORT to the same value for this test.
 DID_WEB_SERVER_BACKEND=file # Store DIDs on the local file system.
-DID_WEB_SERVER_BACKEND_FILE_STORE=/server/dids # DIDs will be stored in the `dids` folder below your current directory.
+DID_WEB_SERVER_BACKEND_FILE_STORE=/server/did_store # DIDs will be stored in the `dids` folder below your current directory.
 # DID_WEB_SERVER_TLS=/server/cert.pem # For compatibilty with DID resolvers, a certificate is required. It will be added later.
 ```
 
-The `id.localhost` hostname (variable `DID_WEB_SERVER_EXTERNAL_HOSTNAME`) works
-on every operating system without additional configuration. However, it is only
+The `localhost` hostname (variable `DID_WEB_SERVER_EXTERNAL_HOSTNAME`) works on
+every operating system without additional configuration. However, it is only
 accessible by the local computer. Other systems will not be able to resolve DIDs
 on this server. For testing purposes on your computer, this configuration is
 fully sufficient.
 
 With the configuration in place, it is time to start the server. Execute the
 following command to start the server in the current directory. Newly created
-DIDs will be stored in the `./dids` directory:
+DIDs will be stored in the `./did_store` directory:
 
 ```bash
 docker run -it --rm -p 3000 --env-file .env -u "$(id -u):(id -g)" -v "$PWD:/server" -w "/server" registry.41ppl.com/did-web-server:latest
@@ -61,7 +61,7 @@ docker run -it --rm -p 3000 --env-file .env -u "$(id -u):(id -g)" -v "$PWD:/serv
 ## Create the first local DID
 
 Congratulations, the server is up and running! It does not contain any DID, yet.
-Let's create the first DID: `did:web:id.localhost%3A3000:person1`
+Let's create the first DID: `did:web:localhost%3A3000:person1`
 
 ### Create key
 
@@ -81,16 +81,16 @@ generated public key:
 cat > person1-did.json <<EOF
 {
   "@context": ["https://www.w3.org/ns/did/v1"],
-  "id": "did:web:id.localhost%3A3000:person1",
+  "id": "did:web:localhost%3A3000:person1",
   "verificationMethod": [
     {
       "@context": {
         "sec": "https://w3id.org/security/v2#",
         "jwk2020": "https://w3c.github.io/vc-jws-2020/contexts/v1#"
       },
-      "id": "did:web:id.localhost%3A3000:person1#key1",
+      "id": "did:web:localhost%3A3000:person1#key1",
       "type": "did:Ed25519VerificationKey2018",
-      "sec:controller": "did:web:id.localhost%3A3000:person1",
+      "sec:controller": "did:web:localhost%3A3000:person1",
       "jwk2020:publicKeyJwk": {
         "jwk2020:kty": "OKP",
         "jwk2020:crv": "Ed25519",
@@ -98,8 +98,8 @@ cat > person1-did.json <<EOF
       }
     }
   ],
-  "authentication": ["did:web:id.localhost%3A3000:person1#key1"],
-  "assertionMethod": ["did:web:id.localhost%3A3000:person1#key1"]
+  "authentication": ["did:web:localhost%3A3000:person1#key1"],
+  "assertionMethod": ["did:web:localhost%3A3000:person1#key1"]
 }
 EOF
 ```
@@ -155,14 +155,14 @@ The first step of placing the Verifiable Credential inside a Verifiable
 Presentation is to retrieve the proof parameters for the DID:
 
 ```bash title="person1-vp-proof-parameters.json"
-curl -f -o person1-vp-proof-parameters.json http://id.localhost:3000/person1/did.json?proofParameters
+curl -f -o person1-vp-proof-parameters.json http://localhost:3000/person1/did.json?proofParameters
 ```
 
 :::note
 
 The proof parameters will be the same on all systems that use the same DNS name,
-i.e. `id.localhost`! This is by design. The did:web method relies on a secure
-DNS configuration!
+i.e. `localhost`! This is by design. The did:web method relies on a secure DNS
+configuration!
 
 :::
 
@@ -189,13 +189,13 @@ didkit vc-issue-presentation -k owner.jwk -p assertionMethod -t Ed25519Signature
 The last step is to submit the signed presentation to the server:
 
 ```bash
-curl -f -X POST -d @person1-vp-signed.json http://id.localhost:3000/person1/did.json
+curl -f -X POST -d @person1-vp-signed.json http://localhost:3000/person1/did.json
 ```
 
 The DID document can now be retrieved from did-web-server for inspection:
 
 ```bash
-curl -f http://id.localhost:3000/person1/did.json
+curl -f http://localhost:3000/person1/did.json
 ```
 
 Congratulations, you've registered the first DID! 🎉 To make the server fully

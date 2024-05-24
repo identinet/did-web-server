@@ -10,6 +10,9 @@ export default defineConfig({
 		starlight({
 			title: 'did-web-server',
 			favicon: '/favicon.svg',
+			customCss: [
+				"./src/styles/custom.css"
+			],
 			head: [
 				// Add ICO favicon fallback for Safari.
 				{
@@ -52,10 +55,10 @@ export default defineConfig({
 					label: 'Deployment',
 					autogenerate: { directory: 'deployment' },
 				},
-				{
-					label: 'DID Management',
-					autogenerate: { directory: 'did-management' },
-				},
+				// {
+				// 	label: 'DID Management',
+				// 	autogenerate: { directory: 'did-management' },
+				// },
 				{ label: 'Congratulations', link: '/congratulations' },
 				...openAPISidebarGroups
 			],
