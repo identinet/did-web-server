@@ -112,7 +112,7 @@ impl DIDWeb {
             Err(e) => {
                 if port.is_empty() {
                     if host == "localhost" {
-                        8080_u16
+                        3000_u16
                     } else {
                         443_u16
                     }
@@ -267,8 +267,8 @@ mod test {
         let result = DIDWeb::new(host, port, path, &id).unwrap();
         assert_eq!(
             result.to_string(),
-            "did:web:localhost%3A8080:abc",
-            "When <port> is empty and host is 'localhost', then the default port 8080 is assumed"
+            "did:web:localhost%3A3000:abc",
+            "When <port> is empty and host is 'localhost', then the default port 3000 is assumed"
         );
 
         let host = "example.com";
