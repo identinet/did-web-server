@@ -123,7 +123,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             external_hostname: "localhost".to_string(),
-            external_port: "8000".to_string(),
+            external_port: "3000".to_string(),
             external_path: "/".to_string(),
             owner: "<invalidDID>".to_string(),
             reslover_options: ResolverOptions {
