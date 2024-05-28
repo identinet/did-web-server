@@ -23,7 +23,11 @@ The excellent [mkcert](https://github.com/FiloSottile/mkcert) tool simplifies th
 integration of a local Certificate Authority. Follow these steps to set up the Certificate Authority:
 
 1. Install mkcert following the instructions on [https://github.com/FiloSottile/mkcert]()
-2. Setup and install local CA: `mkcert -install`
+2. Setup and install local CA:
+
+```bash
+mkcert -install
+```
 
 Ensure that the previous command completed successfully before proceeding to the next step.
 
@@ -47,13 +51,13 @@ cat localhost.pem localhost-key.pem > cert.pem
 3. Now, let's enable the certificate in the configuration:
 
 ```bash title=".env" {7}
-DID_WEB_SERVER_OWNER=did:key:xxxx # Put the created or existing DID here.
-DID_WEB_SERVER_EXTERNAL_HOSTNAME=localhost # Hostname and port determine the DIDs that are managed by this server, e.g. did:web:id.localhost%3A3000:xyz.
-DID_WEB_SERVER_EXTERNAL_PORT=3000 # Set DID_WEB_SERVER_PORT and DID_WEB_SERVER_EXTERNAL_PORT to the same value for this test.
-DID_WEB_SERVER_PORT=3000 # Set DID_WEB_SERVER_PORT and DID_WEB_SERVER_EXTERNAL_PORT to the same value for this test.
-DID_WEB_SERVER_BACKEND=file # Store DIDs on the local file system.
-DID_WEB_SERVER_BACKEND_FILE_STORE=/server/did_store # DIDs will be stored in the `dids` folder below your current directory.
-DID_WEB_SERVER_TLS=/server/cert.pem # For compatibilty with DID resolvers, a certificate is required. It will be added later.
+DWS_OWNER=did:key:xxxx # Put the created or existing DID here.
+DWS_EXTERNAL_HOSTNAME=localhost # Hostname and port determine the DIDs that are managed by this server, e.g. did:web:id.localhost%3A3000:xyz.
+DWS_EXTERNAL_PORT=3000 # Set DWS_PORT and DWS_EXTERNAL_PORT to the same value for this test.
+DWS_PORT=3000 # Set DWS_PORT and DWS_EXTERNAL_PORT to the same value for this test.
+DWS_BACKEND=file # Store DIDs on the local file system.
+DWS_BACKEND_FILE_STORE=/server/did_store # DIDs will be stored in the `dids` folder below your current directory.
+DWS_TLS=/server/cert.pem # For compatibilty with DID resolvers, a certificate is required. It will be added later.
 ```
 
 4. With the updated configuration in place, let's restart the server:

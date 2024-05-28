@@ -15,13 +15,19 @@ The excellent [DIDKit](https://www.spruceid.dev/didkit/didkit/installation) CLI 
 1. Generate a key:
 
 ```bash title="owner.jwk"
-docker run -it --rm -u "$(id -u):$(id -g)" -v "$PWD:/app" -w "/app" ghcr.io/spruceid/didkit-cli:latest key generate ed25519 > owner.jwk
+docker run --rm identinet/didkit-cli:0.3.2-1 key generate ed25519 > owner.jwk
 ```
 
 2. Derive a did:key DID:
 
 ```bash title="owner.did"
-docker run -it --rm -u "$(id -u):$(id -g)" -v "$PWD:/app" -w "/app" ghcr.io/spruceid/didkit-cli:latest key-to-did -k owner.jwk > owner.did
+docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" identinet/didkit-cli:0.3.2-1 key to did \
+  -k owner.jwk | tee owner.did
+# Output should look like this:
+# did:key:z6MktLbz19wirLPGiWm2PoJg7rYGB5B1a59DxQxNp4F6o96K
+
+# Convert the output from dos to unix, otherwise subsequent commands will fail
+sed -i -e 's/\r$//' owner.did
 ```
 
 ## Start your server
@@ -31,24 +37,24 @@ system. The first step is to configure did-web-server via environment variables.
 `.env` with the following contents:
 
 ```bash title=".env"
-DID_WEB_SERVER_OWNER=did:key:xxxx # Put the created or existing DID here.
-DID_WEB_SERVER_EXTERNAL_HOSTNAME=localhost # Hostname and port determine the DIDs that are managed by this server, e.g. did:web:id.localhost%3A3000:xyz.
-DID_WEB_SERVER_EXTERNAL_PORT=3000 # Set DID_WEB_SERVER_PORT and DID_WEB_SERVER_EXTERNAL_PORT to the same value for this test.
-DID_WEB_SERVER_PORT=3000 # Set DID_WEB_SERVER_PORT and DID_WEB_SERVER_EXTERNAL_PORT to the same value for this test.
-DID_WEB_SERVER_BACKEND=file # Store DIDs on the local file system.
-DID_WEB_SERVER_BACKEND_FILE_STORE=/server/did_store # DIDs will be stored in the `dids` folder below your current directory.
-# DID_WEB_SERVER_TLS=/server/cert.pem # For compatibilty with DID resolvers, a certificate is required. It will be added later.
+DWS_OWNER=did:key:xxxx # Put the created or existing DID here.
+DWS_EXTERNAL_HOSTNAME=localhost # Hostname and port determine the DIDs that are managed by this server, e.g. did:web:id.localhost%3A3000:xyz.
+DWS_EXTERNAL_PORT=3000 # Set DWS_PORT and DWS_EXTERNAL_PORT to the same value for this test.
+DWS_PORT=3000 # Set DWS_PORT and DWS_EXTERNAL_PORT to the same value for this test.
+DWS_BACKEND=file # Store DIDs on the local file system.
+DWS_BACKEND_FILE_STORE=/server/did_store # DIDs will be stored in the `dids` folder below your current directory.
+# DWS_TLS=/server/cert.pem # For compatibilty with DID resolvers, a certificate is required. It will be added later.
 ```
 
-The `localhost` hostname (variable `DID_WEB_SERVER_EXTERNAL_HOSTNAME`) works on every operating system without
-additional configuration. However, it is only accessible by the local computer. Other systems will not be able to
-resolve DIDs on this server. For testing purposes on your computer, this configuration is fully sufficient.
+The `localhost` hostname (variable `DWS_EXTERNAL_HOSTNAME`) works on every operating system without additional
+configuration. However, it is only accessible by the local computer. Other systems will not be able to resolve DIDs on
+this server. For testing purposes on your computer, this configuration is fully sufficient.
 
 With the configuration in place, it is time to start the server. Execute the following command to start the server in
 the current directory. Newly created DIDs will be stored in the `./did_store` directory:
 
 ```bash
-docker run -it --rm -p 3000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/server" -w "/server" registry.41ppl.com/did-web-server:latest
+docker run -it --rm -p 3000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/run/dws" registry.41ppl.com/did-web-server:latest
 ```
 
 ## Create the first local DID
@@ -62,7 +68,7 @@ Every DID requires a public private key pair. We can reuse the previous command 
 DID:
 
 ```bash title="person1.jwk"
-docker run -it --rm -u "$(id -u):$(id -g)" -v "$PWD:/app" -w "/app" ghcr.io/spruceid/didkit-cli:latest key generate ed25519 > person1.jwk
+docker run --rm identinet/didkit-cli:0.3.2-1 key generate ed25519 > person1.jwk
 ```
 
 ### Create DID document
@@ -127,7 +133,9 @@ EOF
 Sign credential:
 
 ```bash title="person1-vc-did-signed.json"
-didkit vc-issue-credential -k owner.jwk -p assertionMethod -t Ed25519Signature2018 -v "$(cat owner.did)" < person1-vc-did.json > person1-vc-did-signed.json
+VERIFICATION_METHOD="$(docker run --rm identinet/didkit-cli:0.3.2-1 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
+docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" identinet/didkit-cli:0.3.2-1 credential issue \
+  -k owner.jwk -p assertionMethod -t Ed25519Signature2018 -v "$VERIFICATION_METHOD" < person1-vc-did.json > person1-vc-did-signed.json
 ```
 
 ### Place Verifiable Credential in Verifiable Presentation
@@ -148,26 +156,33 @@ curl -f -o person1-vp-proof-parameters.json http://localhost:3000/person1/did.js
 
 :::note
 
-The proof parameters will be the same on all systems that use the same DNS name, i.e. `localhost`! This is by design.
-The did:web method relies on a secure DNS configuration!
+The initial proof parameters will be the same on all systems that use the same DNS name, i.e. `localhost`! This is by
+design. The did:web method relies on a secure DNS configuration to work properly!
 
 :::
 
-With the proof parameters in place, the next steps are to create the presentation:
+With the proof parameters in place, the next step is to create the presentation:
 
 ```bash title="person1-vp.json"
+cat > person1-vp.json <<EOF
 {
   "@context": "https://www.w3.org/2018/credentials/v1",
   "type": ["VerifiablePresentation"],
   "holder": "$(cat owner.did)",
   "verifiableCredential": $(cat person1-vc-did-signed.json)
 }
+EOF
 ```
 
 Finally, sign the presentation with the correct proof parameters:
 
-```bash title="person1-vc-did-signed.json"
-didkit vc-issue-presentation -k owner.jwk -p assertionMethod -t Ed25519Signature2018 -v "$(cat owner.did)" < person1-vp.json > person1-vp-signed.json
+```bash title="person1-vp-did-signed.json"
+VERIFICATION_METHOD="$(docker run --rm identinet/didkit-cli:0.3.2-1 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
+DOMAIN="$(jq -r .domain person1-vp-proof-parameters.json)"
+CHALLENGE="$(jq -r .challenge person1-vp-proof-parameters.json)"
+docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" identinet/didkit-cli:0.3.2-1 presentation issue \
+  -k owner.jwk -p assertionMethod -t Ed25519Signature2018 -v "$VERIFICATION_METHOD" -d "$DOMAIN" -c "$CHALLENGE" \
+< person1-vp.json > person1-vp-signed.json
 ```
 
 ### Register DID on server
@@ -178,12 +193,12 @@ The last step is to submit the signed presentation to the server:
 curl -f -X POST -d @person1-vp-signed.json http://localhost:3000/person1/did.json
 ```
 
-The DID document can now be retrieved from did-web-server for inspection:
+Let's retrieve the DID document from did-web-server for inspection:
 
 ```bash
-curl -f http://localhost:3000/person1/did.json
+curl -f http://localhost:3000/person1/did.json | jq
 ```
 
 Congratulations, you've registered the first DID! 🎉 To make the server fully operational, a TLS certificate is
 required. The steps for adding a valid TLS certificate to this server are described in the
-[deployment guide for a local test server](/deployment/test-server)
+[deployment guide for a local test server](/deployment/test-server).
