@@ -6,6 +6,7 @@ set shell := ['nu', '-c']
 # Integration with nodejs package.json scripts, see https://just.systems/man/en/chapter_65.html
 
 export PATH := env('PWD') / 'node_modules/.bin:' + env('PATH')
+WEBSITE := "dws.identinet.io"
 
 # Print this help
 default:
@@ -44,6 +45,20 @@ preview:
 # Update dependencies
 update-dependencies:
     yarn upgrade-interactive --latest
+
+# Publish website
+publish: build
+    #!/usr/bin/env nu
+    ^find "_websites/{{ WEBSITE }}" -mindepth 1 -maxdepth 1 -not -name .git -not -name CNAME -not -name _config.yml -not -name .well-known | xargs rm -rf
+    cp -r dist/* "_websites/{{ WEBSITE }}"
+    cd "_websites/{{ WEBSITE }}"
+    git add -A .
+    git commit -m "chore: update docs"
+    git push
+    cd -
+    git add "_websites/{{ WEBSITE }}"
+    git commit -m "chore: update docs"
+    git push
 
 # Clean files
 clean:

@@ -1,3 +1,6 @@
 [submodule "docs/figures/plantuml-styles"]
 	path = docs/figures/styles
 	url = https://github.com/identinet/plantuml-styles.git
+[submodule "docs/_websites/dws.identinet.io"]
+	path = docs/_websites/dws.identinet.io
+	url = https://github.com/identinet/did-web-server-docs.git
