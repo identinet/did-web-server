@@ -1,0 +1,48 @@
+{
+  "@context": "https://www.w3.org/2018/credentials/v1",
+  "id": "https://example.com/vc/123",
+  "type": "VerifiableCredential",
+  "credentialSubject": {
+    "id": "did:web:localhost%3A8000:valid-did",
+    "@context": [
+      "https://www.w3.org/ns/did/v1",
+      "https://w3id.org/security/suites/jws-2020/v1"
+    ],
+    "verificationMethod": [
+      {
+        "controller": "did:web:localhost%3A8000:valid-did",
+        "id": "did:web:localhost%3A8000:valid-did#controller",
+        "publicKeyJwk": {
+          "crv": "Ed25519",
+          "kty": "OKP",
+          "x": "AZJ8CMWYjqNybPPMEHq_RsRtk-oJPaJmqMOlzzTJrd8"
+        },
+        "type": "JsonWebKey2020"
+      },
+      {
+        "controller": "did:web:localhost%3A8000:valid-did",
+        "id": "did:web:localhost%3A8000:valid-did#controller2",
+        "publicKeyJwk": {
+          "crv": "Ed25519",
+          "kty": "OKP",
+          "x": "i6v1AdziqHaO5erjSYqScvGxpZXSM4D6RZ68pi9v8M8"
+        },
+        "type": "JsonWebKey2020"
+      }
+    ],
+    "authentication": [
+      "did:web:localhost%3A8000:valid-did#controller",
+      "did:web:localhost%3A8000:valid-did#controller2"
+    ],
+    "assertionMethod": ["did:web:localhost%3A8000:valid-did#controller"]
+  },
+  "issuer": "did:web:localhost%3A8000:valid-did",
+  "issuanceDate": "2022-09-29T08:24:41.148812470Z",
+  "proof": {
+    "type": "Ed25519Signature2018",
+    "proofPurpose": "assertionMethod",
+    "verificationMethod": "did:web:localhost%3A8000:valid-did#controller",
+    "created": "2022-09-29T08:24:41.149Z",
+    "jws": "eyJhbGciOiJFZERTQSIsImNyaXQiOlsiYjY0Il0sImI2NCI6ZmFsc2V9..Qqk0KGnXtaP2WgCMQVcljnG4RoE4WNcmah9c5wxmBMk2gEMyR0MvjxNECN_qLUcPjkkSrerAwZUpRdfEQXwcCQ"
+  }
+}
