@@ -42,7 +42,7 @@ export default defineConfig({
 					{
 						base: 'api',
 						label: 'API',
-						schema: '../openapi/openapi.yaml',
+						schema: 'public/openapi.yaml',
 						collapsed: false,
 					},
 				]),
