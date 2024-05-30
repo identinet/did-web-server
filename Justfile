@@ -22,9 +22,10 @@ generate-owner-key:
 # Continuously run and build application for development purposes
 dev: install generate-owner-key
     #!/usr/bin/env nu
-    let-env DID_SERVER_BACKEND = file
-    let-env DID_SERVER_OWNER = (didkit key-to-did -k owner.jwk)
-    let-env DID_SERVER_PORT = 8000
+    let-env DWS_BACKEND = file
+    let-env DWS_OWNER = (didkit key-to-did -k owner.jwk)
+    # let-env DWS_OWNER = "did:key:z6MkwSo3P2obKCTN6n3gfKC2XbnrJiKtftrzZZbVKgVwkgoZ"
+    let-env DWS_PORT = 8000
     cargo watch -w src -x run
 
 # Run universal-resolver and did-web-resolver with did-web-server in docker

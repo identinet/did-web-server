@@ -239,8 +239,8 @@ fn ship(config: Config) -> rocket::Rocket<rocket::Build> {
     let figment = Figment::from(rocket::Config::default())
         .merge(Serialized::defaults(rocket::Config::default()))
         // .merge(Toml::file("Didwebserver.toml").nested())
-        .merge(Env::prefixed("DID_SERVER_").global())
-        .select(Profile::from_env_or("DID_SERVER_PROFILE", "default"));
+        .merge(Env::prefixed("DWS_").global())
+        .select(Profile::from_env_or("DWS_PROFILE", "default"));
     rocket::custom(figment).manage(config).mount(
         "/",
         routes![

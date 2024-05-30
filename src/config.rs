@@ -58,10 +58,10 @@ impl Config {
     // }
     pub fn load_env_or_panic(config: Config) -> Config {
         Config {
-            external_hostname: get_env("DID_SERVER_EXTERNAL_HOSTNAME", &config.external_hostname),
-            external_port: get_env("DID_SERVER_EXTERNAL_PORT", &config.external_port),
-            external_path: get_env("DID_SERVER_EXTERNAL_PATH", &config.external_path),
-            owner: std::env::var("DID_SERVER_OWNER")
+            external_hostname: get_env("DWS_EXTERNAL_HOSTNAME", &config.external_hostname),
+            external_port: get_env("DWS_EXTERNAL_PORT", &config.external_port),
+            external_path: get_env("DWS_EXTERNAL_PATH", &config.external_path),
+            owner: std::env::var("DWS_OWNER")
                 .map_err(|_| DIDError::OwnerMissing("Owner not specified".to_string()))
                 .and_then(|owner| {
                     if owner.is_empty() {
@@ -76,20 +76,20 @@ impl Config {
                 })
                 .unwrap(),
             reslover_options: ResolverOptions {
-                did_resolver: std::env::var("DID_SERVER_RESOLVER")
+                did_resolver: std::env::var("DWS_RESOLVER")
                     .ok()
                     .map(|ref url| HTTPDIDResolver::new(url)),
-                did_resolver_override: std::env::var("DID_SERVER_RESOLVER_OVERRIDE")
+                did_resolver_override: std::env::var("DWS_RESOLVER_OVERRIDE")
                     .ok()
                     .map(|ref url| HTTPDIDResolver::new(url)),
             },
-            store: Ok(get_env("DID_SERVER_BACKEND", "mem"))
+            store: Ok(get_env("DWS_BACKEND", "mem"))
                 .and_then(
                     |backend| -> Result<Box<dyn DIDWebStore + Sync + Send>, DIDError> {
                         match backend.as_str() {
                             "file" => {
                                 let directory = get_env(
-                                    "DID_SERVER_BACKEND_FILE_STORE",
+                                    "DWS_BACKEND_FILE_STORE",
                                     // by default store all files in $PWD/did_store/
                                     &std::env::current_dir()
                                         .map(|val| {
