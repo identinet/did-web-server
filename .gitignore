@@ -23,3 +23,4 @@ target/
 /client/cov_profile/
 
 /.direnv
+/result

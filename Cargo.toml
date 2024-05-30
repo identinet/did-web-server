@@ -2,6 +2,13 @@
 name = "did-web-server"
 version = "0.1.0"
 edition = "2021"
+authors = ["identinet GmbH"]
+keywords = ["ssi", "did", "http"]
+categories = ["web-programming::http-server"]
+description = "did-web-server is a self-sovereign identity for the web"
+repository = "https://github.com/identinet/did-web-server"
+homepage = "https://github.com/identinet/did-web-server"
+documentation = "https://dws.identinet.io"
 
 [features]
 fail-on-warnings = []

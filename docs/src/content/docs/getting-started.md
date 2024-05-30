@@ -54,7 +54,7 @@ With the configuration in place, it is time to start the server. Execute the fol
 the current directory. Newly created DIDs will be stored in the `./did_store` directory:
 
 ```bash
-docker run -it --rm -p 3000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/run/dws" identinet/did-web-server
+docker run -it --rm -p 3000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/run/dws" identinet/did-web-server:0.1.0
 ```
 
 ## Create the first did:web DID

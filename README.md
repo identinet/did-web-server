@@ -17,7 +17,8 @@ required to interact with the service.
 
 ### Documentation
 
-User and API documentation is available at [https://dws.identinet.io]().
+- User and API documentation is available at [https://dws.identinet.io]().
+- Docker Container Image [did-web-server](https://hub.docker.com/r/identinet/did-web-server)
 
 ### Technology Stack
 
