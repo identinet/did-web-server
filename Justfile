@@ -158,7 +158,7 @@ release LEVEL="patch" NEW_VERSION="":
     input -s $"Version will be bumped from ($current_version) to ($new_version)\nPress enter to confirm.\n"
     do { cd docs; just publish }
     open manifest.json | upsert version $new_version | save _manifest.json; mv _manifest.json manifest.json; git add manifest.json
-    open Cargo.toml | upsert paackge.version $new_version | to text | lines | insert 0 "# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html" | to text | save _Cargo.toml; mv _Cargo.toml Cargo.toml; git add Cargo.toml
+    open Cargo.toml | upsert paackge.version $new_version | to toml | lines | insert 0 "# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html" | to text | save _Cargo.toml; mv _Cargo.toml Cargo.toml; git add Cargo.toml
     open README.md | str replace -a $current_version $new_version | save _README.md; mv _README.md README.md; git add README.md
     open -r ./docs/public/openapi.yaml | str replace -a $"version: \"($current_version)\"" $"version: \"($new_version)\"" | save ./docs/public/_openapi.yaml; mv ./docs/public/_openapi.yaml ./docs/public/openapi.yaml; git add ./docs/public/openapi.yaml
     open -r ./docs/src/content/docs/getting-started.md | str replace -a $"identinet/did-web-server:($current_version)" $"identinet/did-web-server:($new_version)" | save ./docs/src/content/docs/_getting-started.md; mv ./docs/src/content/docs/_getting-started.md ./docs/src/content/docs/getting-started.md; git add ./docs/src/content/docs/getting-started.md
