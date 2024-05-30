@@ -7,10 +7,10 @@ use std::path::Path;
 use crate::error::DIDError;
 
 pub trait DIDWebStore {
-    /// Tests existence of DID in store
-    ///
-    /// - `id` - id part of the did:web method as specified in https://w3c-ccg.github.io/did-method-web/
-    fn exists(&self, id: &Path) -> bool;
+    // /// Tests existence of DID in store.
+    // ///
+    // /// - `id` - id part of the did:web method as specified in https://w3c-ccg.github.io/did-method-web/
+    // fn exists(&self, id: &Path) -> bool;
 
     /// Get DID from store. The operation fails if the DID doesn't exist.
     ///

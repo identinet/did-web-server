@@ -34,15 +34,13 @@ impl Default for FileStore {
 }
 
 impl DIDWebStore for FileStore {
-    // DID2filename wird gebraucht
-    fn exists(&self, id: &Path) -> bool {
-        match id2filename(&self.directory, id) {
-            Ok(filename) => filename.exists(),
-            Err(_) => false,
-        }
-    }
+    // fn exists(&self, id: &Path) -> bool {
+    //     match id2filename(&self.directory, id) {
+    //         Ok(filename) => filename.exists(),
+    //         Err(_) => false,
+    //     }
+    // }
 
-    /// Get DID from store. The operation fails if the DID doesn't exist.
     fn get(&self, id: &Path) -> Result<Document, DIDError> {
         id2filename(&self.directory, id)
             // .map(|f| {
@@ -74,7 +72,6 @@ impl DIDWebStore for FileStore {
             })
     }
 
-    /// Create DID in store. The operation fails if the DID already exists.
     fn create(&self, id: &Path, doc: Document) -> Result<Document, DIDError> {
         let did = doc.id.to_string();
         self.store_diddoc(id, doc, |filename| {
@@ -86,12 +83,10 @@ impl DIDWebStore for FileStore {
         })
     }
 
-    /// Update DID in store. The operation fails if the DID doesn't exist.
     fn update(&self, id: &Path, doc: Document) -> Result<Document, DIDError> {
         self.store_diddoc(id, doc, |filename| Ok(filename))
     }
 
-    /// Remove DID from store. The operation fails if the DID doesn't exist.
     fn remove(&self, id: &Path) -> Result<Document, DIDError> {
         let document = self.get(id)?; // WARNING: potential early return!
         id2filename(&self.directory, id)

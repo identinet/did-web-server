@@ -36,12 +36,10 @@ impl MemStore {
 }
 
 impl DIDWebStore for MemStore {
-    // DID2filename wird gebraucht
-    fn exists(&self, id: &Path) -> bool {
-        self.store.get(&MemStore::id_to_string(id)).is_some()
-    }
+    // fn exists(&self, id: &Path) -> bool {
+    //     self.store.get(&MemStore::id_to_string(id)).is_some()
+    // }
 
-    /// Get DID from store. The operation fails if the DID doesn't exist.
     fn get(&self, id: &Path) -> Result<Document, DIDError> {
         self.store
             .get(&MemStore::id_to_string(id))
@@ -49,7 +47,6 @@ impl DIDWebStore for MemStore {
             .ok_or_else(|| DIDError::DIDNotFound("DID not found".to_string()))
     }
 
-    /// Create DID in store. The operation fails if the DID already exists.
     fn create(&self, id: &Path, doc: Document) -> Result<Document, DIDError> {
         if self.store.get(&MemStore::id_to_string(id)).is_some() {
             Err(DIDError::DIDExists(format!(
@@ -62,9 +59,6 @@ impl DIDWebStore for MemStore {
         }
     }
 
-    /// Update DID in store. The operation fails if the DID doesn't exist.
-    ///
-    /// @returns The old version of the DID Document
     fn update(&self, id: &Path, doc: Document) -> Result<Document, DIDError> {
         if self.store.get(&MemStore::id_to_string(id)).is_none() {
             Err(DIDError::DIDNotFound("DID not found".to_string()))
@@ -78,9 +72,6 @@ impl DIDWebStore for MemStore {
         }
     }
 
-    /// Remove DID from store. The operation fails if the DID doesn't exist.
-    ///
-    /// @returns The old version of the DID Document
     fn remove(&self, id: &Path) -> Result<Document, DIDError> {
         self.store
             .remove(&MemStore::id_to_string(id))
