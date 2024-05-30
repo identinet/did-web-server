@@ -22,7 +22,7 @@ version = "^0.2.1"
 
 [dependencies.rocket]
 features = ["json"]
-version = "^0.5.0-rc.3"
+version = "^0.5.1"
 
 [dependencies.serde]
 features = ["derive"]
