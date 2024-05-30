@@ -26,6 +26,7 @@ dev:
 
 # Update figures
 update-figures:
+    # Updates https://hub.docker.com/r/plantuml/plantuml/tags
     docker run -u $"(id -u):(id -g)" -v $"($env.PWD):/app" -w /app plantuml/plantuml:1.2024.4 -charset UTF-8 -nbthread auto -failfast2 -tsvg $"-DDATE=(date now | format date "%Y-%m-%d")" figures/*.puml
     rm -rpf ?
 
