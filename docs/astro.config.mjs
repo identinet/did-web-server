@@ -49,7 +49,9 @@ export default defineConfig({
 				]),
 				// Validate internal links
 				// Ocumentation: https://starlight-links-validator.vercel.app/getting-started/
-				starlightLinksValidator(),
+				starlightLinksValidator({
+					exclude: ['/api'],
+				}),
 			],
 			sidebar: [
 				{ label: 'Introduction', link: '/' },
