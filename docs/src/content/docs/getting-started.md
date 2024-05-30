@@ -62,6 +62,20 @@ docker run -it --rm -p 3000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/run
 Congratulations, the server is up and running! It does not contain any DID, yet. Let's create the first DID:
 `did:web:localhost%3A3000:person1`
 
+did-web-server is using DIDs, Verifiable Credentials (VCs) and Verfiable Presentations (VPs) to verify access and encode
+data. The following diagram depicts the preparation process for a DID document to be sent to and stored on the server:
+
+1. First, a cryptographic key is created or an existing key is selected.
+2. The DID document is created that references the key.
+3. A Verifiable Credential is created that includes the DID document. The VC is signed by an authorized key (when the
+   DID is first created, the server owner's key must sign the VC).
+4. A Verifiable Presentation is created that includes the VC. The VP is signed by an authorized key (when the DID is
+   first created, the server owner's key must sign the VP). To mitigate replay attacks, the VP must also contain
+   specific proof parameters that can be retrieved from did-web-server.
+5. If the submitted VP and VC are successfully verfied, the included DID document is stored on the server.
+
+![Component diagram for creating and updating a DID document](/figures/did-creation-components.svg)
+
 ### Create key
 
 Every DID requires a public private key pair. We can reuse the previous command to create another key pair for the new

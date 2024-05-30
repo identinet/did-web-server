@@ -1,0 +1,33 @@
+@startuml ../public/figures/did-creation-components
+!include ./styles/styles.puml
+
+title "Component diagram for creating and updating a DID document"
+
+!include ./styles/c4/C4_Context.puml
+!include ./styles/c4/C4_Component.puml
+!include ./styles/sprites/icons/font-awesome-6/magnifying_glass.puml
+!include ./styles/sprites/icons/font-awesome-6/server.puml
+!include ./styles/sprites/icons/font-awesome-6/key.puml
+!include ./styles/sprites/icons/font-awesome-6/user_gear.puml
+!include ./styles/sprites/icons/font-awesome-6/building.puml
+!include ./styles/sprites/icons/font-awesome-6/file.puml
+!include ./styles/sprites/icons/font-awesome-6/file_contract.puml
+!include ./styles/sprites/icons/font-awesome-6/wallet.puml
+
+System_Ext(wallet, "Wallet", "Store of controlling keys for DID identifier", $sprite="wallet")
+System(server, "did-web-server", "Self-sovereign did:web identifier store", $sprite="server")
+Component_Ext(key, "Cryptographic Key", "", $sprite="key")
+Component(diddoc, "DID Document", "", $sprite="file")
+Component(vc, "Verifiable Credential", "", $sprite="file_contract")
+Component(vp, "Verifiable Presentation", "", $sprite="file_contract")
+
+Rel(wallet, key, "stores", "")
+Rel_L(vp, vc, "includes", "")
+Rel_L(vc, diddoc, "includes", "")
+Rel(key, vc, "signs", "")
+Rel(key, vp, "signs", "")
+Rel_D(vp, server, "submitted to", "HTTPS")
+Rel_U(server, diddoc, "stores", "")
+
+SHOW_LEGEND()
+@enduml

@@ -17,12 +17,13 @@ did-web-server uses DIDs, [Verifiable Credentials (VCs)](https://w3c.github.io/v
 Presentations (VPs) to verify access and encode identifier data. No API tokens, usernames, or passwords are required to
 interact with the service.
 
-The following diagram depicts the context in which did-web-server operates. A wallet manages the keys that control an
-identifier. Only via these keys can DID documents on did-web-server be modified and updated. The main components that
-did-web-server interacts with are DID resolvers. They retrieve DID documents from the server via the standardized
+The following diagram depicts the system context in which did-web-server operates. The context includes additional
+actors and systems that are not part of did-web-server. A wallet manages the keys that control an identifier. Only via
+these keys can DID documents on did-web-server be modified and updated. The main components that did-web-server
+interacts with are DID resolvers. They retrieve DID documents from the server via the standardized
 [did:web](https://w3c-ccg.github.io/did-method-web/) DID method.
 
-![Architecture diagram](/figures/did-web-server-context.svg)
+![System Context Diagram](/figures/did-web-server-context.svg)
 
 ## Tutorial
 

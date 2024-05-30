@@ -1,7 +1,7 @@
 @startuml ../public/figures/did-web-server-context
 !include ./styles/styles.puml
 
-title "Context diagram of did-web-server"
+title "System Context Diagram of did-web-server"
 
 !include ./styles/c4/C4_Context.puml
 !include ./styles/sprites/icons/font-awesome-6/magnifying_glass.puml
@@ -14,14 +14,14 @@ title "Context diagram of did-web-server"
 Person(admin, "Administrator", "Owner of server instance", $sprite="user_gear")
 Person(person, "Person", "Controller of DID identifier", $sprite="user")
 System_Ext(wallet, "Wallet", "Store of controlling keys for DID identifier", $sprite="wallet")
-System(system, "did-web-server", "Self-sovereign did:web identifier store", $sprite="server")
+System(server, "did-web-server", "Self-sovereign did:web identifier store", $sprite="server")
 System_Ext(resolver, "DID Resolver", "did:web compatible DID resolver", $sprite="magnifying_glass")
 
 Rel(person, wallet, "manages", "")
-Rel(wallet, system, "updates DID Document", "")
+Rel(wallet, server, "updates DID Document", "")
 Rel(person, admin, "submits request for did:web identifier", "")
-Rel(admin, system, "creates and deactivates DIDs", "")
-Rel(resolver, system, "resolves DIDs", "")
+Rel(admin, server, "creates and deactivates DIDs", "HTTPS")
+Rel(resolver, server, "resolves DIDs", "HTTPS")
 
 SHOW_LEGEND()
 @enduml
