@@ -122,7 +122,7 @@ paths:
             schema:
               $ref: "#/components/schemas/VerifiablePresentation"
       responses:
-        "204":
+        "201":
           description: Identifier created / DID document stored.
           content:
             application/json:
