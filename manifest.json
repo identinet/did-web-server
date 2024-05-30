@@ -1,18 +1,21 @@
 {
   "name": "did-web-server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Docker image that packages did-web-server",
   "author": "identinet GmbH <support@identinet.io>",
-  "contributors": [
+  "contributors":
+  [
     "Jan Christoph Ebersbach <jan-christoph.ebersbach@identinet.io>"
   ],
   "homepage": "https://github.com/identinet/did-web-server",
   "license": "Proprietary",
-  "repository": {
+  "repository":
+  {
     "type": "git",
     "url": "https://github.com/identinet/did-web-server"
   },
-  "registry": {
+  "registry":
+  {
     "type": "docker",
     "name": "docker.io/identinet",
     "url": "https://hub.docker.com/r/identinet/did-web-server"
