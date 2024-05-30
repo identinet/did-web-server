@@ -81,7 +81,7 @@ paths:
       tags:
         - did
       operationId: resolveDID
-      summary: Reslove DID / Get proof parameters
+      summary: Resolve DID / Get Proof Parameters
       description: |
         This endpoint can only be called by anyone without authentication.
         1. Corresponds to the Read (Resolve) method speficied at https://w3c-ccg.github.io/did-method-web/#read-resolve.
