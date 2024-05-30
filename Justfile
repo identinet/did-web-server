@@ -156,7 +156,7 @@ release LEVEL="patch" NEW_VERSION="":
     print "\nChangelog:\n"
     git cliff --strip all -u -t $new_version
     input -s $"Version will be bumped from ($current_version) to ($new_version)\nPress enter to confirm.\n"
-    { cd docs; just publish }
+    do { cd docs; just publish }
     open manifest.json | upsert version $new_version | save _manifest.json; mv _manifest.json manifest.json; git add manifest.json
     open Cargo.toml | upsert paackge.version $new_version | to text | lines | insert 0 "# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html" | to text | save _Cargo.toml; mv _Cargo.toml Cargo.toml; git add Cargo.toml
     open README.md | str replace -a $current_version $new_version | save _README.md; mv _README.md README.md; git add README.md
