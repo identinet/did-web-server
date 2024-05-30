@@ -58,7 +58,7 @@ publish: build
     git push
     cd -
     git add "_websites/{{ WEBSITE }}"
-    git commit -m "chore: update docs"
+    git commit -m "Update docs repository"
     git push
 
 # Clean files
