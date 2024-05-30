@@ -2,10 +2,9 @@
 // Copyright 2021, Spruce Systems, Inc. All rights reserved.
 // Source: https://github.com/spruceid/didkit/blob/main/cli/src/opts.rs
 
-use did_ethr::DIDEthr;
+use did_jwk::DIDJWK;
 use did_method_key::DIDKey;
 use did_web::DIDWeb;
-use did_webkey::DIDWebKey;
 use lazy_static::lazy_static;
 use ssi::did::DIDMethods;
 use ssi::did_resolve::{HTTPDIDResolver, SeriesResolver};
@@ -22,9 +21,8 @@ lazy_static! {
     static ref DID_METHODS: DIDMethods<'static> = {
         let mut methods = DIDMethods::default();
         methods.insert(Box::new(DIDKey));
-        methods.insert(Box::new(DIDEthr));
+        methods.insert(Box::new(DIDJWK));
         methods.insert(Box::new(DIDWeb));
-        methods.insert(Box::new(DIDWebKey));
         methods
     };
 }
