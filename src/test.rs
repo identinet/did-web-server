@@ -46,6 +46,7 @@ async fn integration_create() {
     use rocket::local::asynchronous::Client;
     let config = Config {
         owner: OWNER.to_string(),
+        external_port: "8000".to_string(),
         ..Config::default()
     };
     let client = Client::tracked(ship(config))
@@ -379,6 +380,7 @@ async fn integration_update() {
     use rocket::local::asynchronous::Client;
     let config = Config {
         owner: OWNER.to_string(),
+        external_port: "8000".to_string(),
         ..Config::default()
     };
     let client = Client::tracked(ship(config))
@@ -859,6 +861,7 @@ async fn integration_delete() {
     use rocket::local::asynchronous::Client;
     let config = Config {
         owner: OWNER.to_string(),
+        external_port: "8000".to_string(),
         ..Config::default()
     };
     let client = Client::tracked(ship(config))
