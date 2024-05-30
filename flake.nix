@@ -39,6 +39,7 @@
             deno
             unstable.nushell
             # nodePackages.semver
+            unstable.cargo-watch
             did_web_server_pkg.nativeBuildInputs
           ];
         };
