@@ -21,4 +21,4 @@ required to interact with the service.
 
 ## Tutorial
 
-Let's discover [**did-web-server in less than 10 minutes**](/getting-started).
+Let's discover [**did-web-server in less than 15 minutes**](/getting-started).

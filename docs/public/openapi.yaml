@@ -81,7 +81,7 @@ paths:
       tags:
         - did
       operationId: resolveDID
-      summary: Reslove a DID / Get proof parameters
+      summary: Reslove DID / Get proof parameters
       description: |
         This endpoint can only be called by anyone without authentication.
         1. Corresponds to the Read (Resolve) method speficied at https://w3c-ccg.github.io/did-method-web/#read-resolve.
@@ -109,7 +109,7 @@ paths:
       tags:
         - did
       operationId: registerDID
-      summary: Register a DID
+      summary: Register DID
       description: |
         This endpoint can only be called by the owner of the service.
         Corresponds to the Create (Register) method speficied at https://w3c-ccg.github.io/did-method-web/#create-register.
@@ -142,7 +142,7 @@ paths:
       tags:
         - did
       operationId: updateDID
-      summary: Update a DID
+      summary: Update DID
       description: |
         This endpoint can only be called by the owner of the DID.
         Corresponds to the Update method speficied at https://w3c-ccg.github.io/did-method-web/#update.
@@ -173,7 +173,7 @@ paths:
       tags:
         - did
       operationId: deactivateDID
-      summary: Deactivate a DID
+      summary: Deactivate DID
       description: |
         This endpoint can only be called by the owner of the service.
         Corresponds to the Deactivate (Revoke) method speficied at https://w3c-ccg.github.io/did-method-web/#deactivate-revoke.

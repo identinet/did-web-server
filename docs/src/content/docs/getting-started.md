@@ -4,10 +4,10 @@ title: Getting Started
 
 Get started by **spinning up a did-web-server**.
 
-Either **create a new for the server's owner** or **use one of your existing DID**. The following DID methods are
-supported: did:key, did:jwk, and did:web. Then, start your server.
+Either **create a new DID for the server's owner** or **use an existing DID**. The following DID methods are supported:
+`did:key`, `did:jwk`, and `did:web`. Then, start your server.
 
-## Create a DID
+## Create Server Owner's DID
 
 The first step in setting up did-web-server is to create the DID for the server's owner. Multiple ways exist to do that.
 The excellent [DIDKit](https://www.spruceid.dev/didkit/didkit/installation) CLI can be used to do that.
@@ -30,7 +30,7 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" identinet/didkit-cl
 sed -i -e 's/\r$//' owner.did
 ```
 
-## Start your server
+## Start your Server
 
 Prepare to start a local test server via Docker that serves DIDs on your computer and stores them on the local file
 system. The first step is to configure did-web-server via environment variables. Create a configuration file called
@@ -54,10 +54,10 @@ With the configuration in place, it is time to start the server. Execute the fol
 the current directory. Newly created DIDs will be stored in the `./did_store` directory:
 
 ```bash
-docker run -it --rm -p 3000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/run/dws" registry.41ppl.com/did-web-server:latest
+docker run -it --rm -p 3000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/run/dws" identinet/did-web-server
 ```
 
-## Create the first local DID
+## Create the first did:web DID
 
 Congratulations, the server is up and running! It does not contain any DID, yet. Let's create the first DID:
 `did:web:localhost%3A3000:person1`
