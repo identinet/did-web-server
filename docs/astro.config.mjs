@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import starlightLinksValidator from 'starlight-links-validator'
 
 import starlightOpenAPI, { openAPISidebarGroups } from 'starlight-openapi';
 
@@ -46,6 +47,9 @@ export default defineConfig({
 						collapsed: false,
 					},
 				]),
+				// Validate internal links
+				// Ocumentation: https://starlight-links-validator.vercel.app/getting-started/
+				starlightLinksValidator(),
 			],
 			sidebar: [
 				{ label: 'Introduction', link: '/' },

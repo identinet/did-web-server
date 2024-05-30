@@ -22,7 +22,8 @@ issue a valid certificate that can be used by the test server.
 The excellent [mkcert](https://github.com/FiloSottile/mkcert) tool simplifies the creation and operating system
 integration of a local Certificate Authority. Follow these steps to set up the Certificate Authority:
 
-1. Install mkcert following the instructions on [https://github.com/FiloSottile/mkcert]()
+1. Install mkcert following the instructions on
+   [https://github.com/FiloSottile/mkcert](https://github.com/FiloSottile/mkcert)
 2. Setup and install local CA:
 
 ```bash
@@ -69,7 +70,8 @@ docker run -it --rm -p 3000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/ser
 ### Test functionality
 
 The validity of the test server's certificate can be tested by either visiting
-[https://localhost:3000/person1/did.json]() in the browser or running the following command:
+[https://localhost:3000/person1/did.json](https://localhost:3000/person1/did.json) in the browser or running the
+following command:
 
 ```bash
 curl -f https://localhost:3000/person1/did.json

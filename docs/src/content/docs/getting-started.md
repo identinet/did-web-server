@@ -201,4 +201,4 @@ curl -f http://localhost:3000/person1/did.json | jq
 
 Congratulations, you've registered the first DID! 🎉 To make the server fully operational, a TLS certificate is
 required. The steps for adding a valid TLS certificate to this server are described in the
-[deployment guide for a local test server](/deployment/test-server).
+[deployment guide for a local test server](/deployment/local-test-server).
