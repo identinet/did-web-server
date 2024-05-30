@@ -32,21 +32,16 @@ githooks:
       git add $hooks_folder
     }
 
+# Generate key for server owner in case it doesn't exist
 generate-owner-key:
-    if not ("owner.jwk" | path exists) {didkit key generate ed25519 out> owner.jwk}
+    if ("owner.jwk" | path exists | not $in) { didkit key generate ed25519 out> owner.jwk }
 
 # Continuously run and build application for development purposes
 dev: githooks generate-owner-key
     #!/usr/bin/env nu
     let-env DWS_BACKEND = file
     let-env DWS_OWNER = (didkit key-to-did -k owner.jwk)
-    # let-env DWS_OWNER = "did:key:z6MkwSo3P2obKCTN6n3gfKC2XbnrJiKtftrzZZbVKgVwkgoZ"
-    let-env DWS_PORT = 8000
     cargo watch -w src -x run
-
-# Run universal-resolver and did-web-resolver with did-web-server in docker
-dev-compose: githooks
-    docker-compose up
 
 # Fast check to verify that the codes still compiles
 check:
