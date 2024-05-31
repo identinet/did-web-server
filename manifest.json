@@ -1,6 +1,6 @@
 {
   "name": "did-web-server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Docker image that packages did-web-server",
   "author": "identinet GmbH <support@identinet.io>",
   "contributors":

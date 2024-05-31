@@ -6,7 +6,7 @@
 # HTTP methods: https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol#Request_methods
 openapi: 3.1.0
 info:
-  version: "0.2.0"
+  version: "0.3.0"
   title: did-web-server API documentation
   description: |
     This is the Open API specification for [did-web-server](https://dws.identinet.io).

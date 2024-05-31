@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2024-05-31
+
+### Added Features
+
+- [f91cfd5](https://github.com/identinet/did-web-server/commit/f91cfd5a47332a1e7fb70969a4104c35804d81f6) Create leading directories before storing DID document
+
+### Bug Fixes
+
+- [**breaking**] [14ae074](https://github.com/identinet/did-web-server/commit/14ae0745393a8bcf4c10897f38d790cd9c2402ad) Revert back to default port 8000
+- [**breaking**] [7b6957c](https://github.com/identinet/did-web-server/commit/7b6957cfe5b5d37309acd0873bd42ba5f693a9c0) Require proof purpose "authentication"
+- [**breaking**] [ae7cd08](https://github.com/identinet/did-web-server/commit/ae7cd0874ada927759c26ee4d38946a613f0c68d) Change support characters in path segments/identifier
+- [862206e](https://github.com/identinet/did-web-server/commit/862206e9aeb1d4364d50f0cb6a7de46eb7fe5135) Correct compiler warning
+- [c5cf1a7](https://github.com/identinet/did-web-server/commit/c5cf1a704f6adc19a54138f54bce7d3e9212dc53) Enable TLS functionality
+
+### Documentation
+
+- [8ddfcac](https://github.com/identinet/did-web-server/commit/8ddfcacfb058f8bb5e211f8dcba109d7a27dccce) Correct rocket linke in the configuration section
+- [eddd7e0](https://github.com/identinet/did-web-server/commit/eddd7e09cfbfeff702d1380453e46edf488e9716) Optimize configuration descriptions
+- [2b97a4a](https://github.com/identinet/did-web-server/commit/2b97a4a2167d7b40a8c8b98e2e2ac1c1846bdf38) Add DID management documentation
+- [c48d3c9](https://github.com/identinet/did-web-server/commit/c48d3c999f40009da6fd6dcc42a06c989491a0d9) Correct typos
+
+### Miscellaneous Tasks
+
+- [728292a](https://github.com/identinet/did-web-server/commit/728292ad0db90ce3891e7a9a4a11dabd2d762128) Update rocket dependency
+- [a7bcdf5](https://github.com/identinet/did-web-server/commit/a7bcdf571c2807624a82e0fbf9373c246a1d26e0) Make error messages more expressive
+- [4627a3d](https://github.com/identinet/did-web-server/commit/4627a3dac0fd2fcfa23c990e90c23141274d767e) Print DIDs found in submitted document
+
 ## [0.2.0] - 2024-05-30
 
 ### Added Features

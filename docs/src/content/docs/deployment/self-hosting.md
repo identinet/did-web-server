@@ -64,7 +64,7 @@ DWS_TLS={certs="example.com.pem",key="example.com-key.pem"}
 2. With the updated configuration in place, let's restart the server:
 
 ```bash
-docker run -it --rm -p 8000:443 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/run/dws" identinet/did-web-server:0.2.0
+docker run -it --rm -p 8000:443 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/run/dws" identinet/did-web-server:0.3.0
 ```
 
 ### Test Functionality
