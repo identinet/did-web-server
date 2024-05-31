@@ -1,6 +1,6 @@
 ---
 title: Hosted Service
 sidebar:
-  order: 3
+  order: 2
   hidden: true
 ---

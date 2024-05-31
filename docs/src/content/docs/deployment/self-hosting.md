@@ -1,7 +1,7 @@
 ---
 title: Self-Hosting
 sidebar:
-  order: 2
+  order: 1
 ---
 
 First, follow the instructions in the [Getting Started guide](/getting-started). Then continue with this guide.

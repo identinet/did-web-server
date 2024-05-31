@@ -216,6 +216,6 @@ Let's retrieve the DID document from did-web-server for inspection:
 curl --fail-with-body http://localhost:8000/person/did.json | jq
 ```
 
-Congratulations, you've registered the first DID! 🎉 To make the server fully operational, a TLS certificate is
-required. The steps for adding a valid TLS certificate to this server are described in the
-[deployment guide for a local test server](/deployment/local-test-server).
+Congratulations, you've registered the first DID! 🎉 From here, you can either move on and explore
+[DID Management](/did-management/resolve-did/) or follow the [Self-Hosting guide](/deployment/self-hosting) to deploy
+did-web-server in production.
