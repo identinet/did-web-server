@@ -96,7 +96,7 @@ impl DIDWeb {
             &config.external_hostname,
             &config.external_port,
             &config.external_path,
-            &id,
+            id,
         )
     }
     pub fn new(host: &str, port: &str, path: &str, id: &PathBuf) -> Result<DIDWeb, DIDError> {
