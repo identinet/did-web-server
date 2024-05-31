@@ -15,19 +15,16 @@ The excellent [DIDKit](https://www.spruceid.dev/didkit/didkit/installation) CLI 
 1. Generate a key:
 
 ```bash title="owner.jwk"
-docker run --rm identinet/didkit-cli:0.3.2-1 key generate ed25519 > owner.jwk
+docker run --rm identinet/didkit-cli:0.3.2-4 key generate ed25519 > owner.jwk
 ```
 
 2. Derive a did:key DID:
 
 ```bash title="owner.did"
-docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" identinet/didkit-cli:0.3.2-1 key to did \
+docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" identinet/didkit-cli:0.3.2-4 key to did \
   -k owner.jwk | tee owner.did
 # Output should look like this:
 # did:key:z6MktLbz19wirLPGiWm2PoJg7rYGB5B1a59DxQxNp4F6o96K
-
-# Convert the output from dos to unix, otherwise subsequent commands will fail
-sed -i -e 's/\r$//' owner.did
 ```
 
 ## Start your Server
@@ -37,13 +34,19 @@ system. The first step is to configure did-web-server via environment variables.
 `.env` with the following contents:
 
 ```bash title=".env"
-DWS_OWNER=did:key:xxxx # Put the created or existing DID here.
-DWS_EXTERNAL_HOSTNAME=localhost # Hostname and port determine the DIDs that are managed by this server, e.g. did:web:id.localhost%3A3000:xyz.
-DWS_EXTERNAL_PORT=3000 # Set DWS_PORT and DWS_EXTERNAL_PORT to the same value for this test.
-DWS_PORT=3000 # Set DWS_PORT and DWS_EXTERNAL_PORT to the same value for this test.
-DWS_BACKEND=file # Store DIDs on the local file system.
-DWS_BACKEND_FILE_STORE=/server/did_store # DIDs will be stored in the `dids` folder below your current directory.
-# DWS_TLS=/server/cert.pem # For compatibilty with DID resolvers, a certificate is required. It will be added later.
+# Put the created or an existing DID here.
+DWS_OWNER=did:key:xxxx
+# Set DWS_ADDRESS to bind to all IPv4 and IPv6 addresses so the service can be exposed to the local computer.
+DWS_ADDRESS=::
+# Hostname and port determine the DIDs that are managed by this server, e.g. did:web:id.localhost%3A8000:xyz.
+DWS_EXTERNAL_HOSTNAME=localhost
+# Store DIDs on the local file system.
+DWS_BACKEND=file
+# DIDs will be stored in the `dids` folder below your current directory.
+DWS_BACKEND_FILE_STORE=/run/dws/did_store
+DWS_LOG_LEVEL=normal
+# For compatibilty with DID resolvers, a certificate is required. It will be added later.
+# DWS_TLS=/run/dws/cert.pem
 ```
 
 The `localhost` hostname (variable `DWS_EXTERNAL_HOSTNAME`) works on every operating system without additional
@@ -54,13 +57,13 @@ With the configuration in place, it is time to start the server. Execute the fol
 the current directory. Newly created DIDs will be stored in the `./did_store` directory:
 
 ```bash
-docker run -it --rm -p 3000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/run/dws" identinet/did-web-server:0.2.0
+docker run -it --rm -p 8000:8000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/run/dws" identinet/did-web-server:0.2.0
 ```
 
 ## Create the first did:web DID
 
 Congratulations, the server is up and running! It does not contain any DID, yet. Let's create the first DID:
-`did:web:localhost%3A3000:person1`
+`did:web:localhost%3A8000:person`
 
 did-web-server is using DIDs, Verifiable Credentials (VCs) and Verfiable Presentations (VPs) to verify access and encode
 data. The following diagram depicts the preparation process for a DID document to be sent to and stored on the server:
@@ -81,37 +84,36 @@ data. The following diagram depicts the preparation process for a DID document t
 Every DID requires a public private key pair. We can reuse the previous command to create another key pair for the new
 DID:
 
-```bash title="person1.jwk"
-docker run --rm identinet/didkit-cli:0.3.2-1 key generate ed25519 > person1.jwk
+```bash title="person.jwk"
+docker run --rm identinet/didkit-cli:0.3.2-4 key generate ed25519 > person.jwk
 ```
 
 ### Create DID document
 
 Execute the following command to create the DID document that includes the generated public key:
 
-```bash title="person1-did.json"
-cat > person1-did.json <<EOF
+```bash title="person-did.json"
+cat > person-did.json <<EOF
 {
-  "@context": ["https://www.w3.org/ns/did/v1"],
-  "id": "did:web:localhost%3A3000:person1",
+  "@context": [
+    "https://www.w3.org/ns/did/v1",
+    "https://w3id.org/security/suites/jws-2020/v1"
+  ],
+  "id": "did:web:localhost%3A8000:person",
   "verificationMethod": [
     {
-      "@context": {
-        "sec": "https://w3id.org/security/v2#",
-        "jwk2020": "https://w3c.github.io/vc-jws-2020/contexts/v1#"
-      },
-      "id": "did:web:localhost%3A3000:person1#key1",
-      "type": "did:Ed25519VerificationKey2018",
-      "sec:controller": "did:web:localhost%3A3000:person1",
-      "jwk2020:publicKeyJwk": {
-        "jwk2020:kty": "OKP",
-        "jwk2020:crv": "Ed25519",
-        "jwk2020:x": "$(jq -r .x person1.jwk)"
+      "id": "did:web:localhost%3A8000:person#key1",
+      "type": "JsonWebKey2020",
+      "controller": "did:web:localhost%3A8000:person",
+      "publicKeyJwk": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "$(jq -r .x person.jwk)"
       }
     }
   ],
-  "authentication": ["did:web:localhost%3A3000:person1#key1"],
-  "assertionMethod": ["did:web:localhost%3A3000:person1#key1"]
+  "authentication": ["did:web:localhost%3A8000:person#key1"],
+  "assertionMethod": ["did:web:localhost%3A8000:person#key1"]
 }
 EOF
 ```
@@ -129,8 +131,8 @@ In contrast, updates are performed by the controller of the DID and not by the s
 
 :::
 
-```bash title="person1-vc-did.json"
-cat > person1-vc-did.json <<EOF
+```bash title="person-vc-did.json"
+cat > person-vc-did.json <<EOF
 {
   "@context": [
     "https://www.w3.org/2018/credentials/v1"
@@ -138,18 +140,18 @@ cat > person1-vc-did.json <<EOF
   "id": "uuid:49387f58-c0d9-4b14-a4f4-bc31a021d925",
   "type": ["VerifiableCredential"],
   "issuer": "$(cat owner.did)",
-  "issuanceDate": "$(date +%Y-%m-%dT%H:%M:%SZ)",
-  "credentialSubject": $(cat person1-did.json)
+  "issuanceDate": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "credentialSubject": $(cat person-did.json)
 }
 EOF
 ```
 
 Sign credential:
 
-```bash title="person1-vc-did-signed.json"
-VERIFICATION_METHOD="$(docker run --rm identinet/didkit-cli:0.3.2-1 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
-docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" identinet/didkit-cli:0.3.2-1 credential issue \
-  -k owner.jwk -p assertionMethod -t Ed25519Signature2018 -v "$VERIFICATION_METHOD" < person1-vc-did.json > person1-vc-did-signed.json
+```bash title="person-vc-did-signed.json"
+VERIFICATION_METHOD="$(docker run --rm identinet/didkit-cli:0.3.2-4 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
+docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" identinet/didkit-cli:0.3.2-4 credential issue \
+  -k owner.jwk -p assertionMethod -t Ed25519Signature2018 -v "$VERIFICATION_METHOD" < person-vc-did.json > person-vc-did-signed.json
 ```
 
 ### Place Verifiable Credential in Verifiable Presentation
@@ -164,8 +166,8 @@ alongside other parameters.
 The first step of placing the Verifiable Credential inside a Verifiable Presentation is to retrieve the proof parameters
 for the DID:
 
-```bash title="person1-vp-proof-parameters.json"
-curl -f -o person1-vp-proof-parameters.json http://localhost:3000/person1/did.json?proofParameters
+```bash title="person-vp-proof-parameters.json"
+curl --fail-with-body -o person-vp-proof-parameters.json http://localhost:8000/person/did.json?proofParameters
 ```
 
 :::note
@@ -177,26 +179,27 @@ design. The did:web method relies on a secure DNS configuration to work properly
 
 With the proof parameters in place, the next step is to create the presentation:
 
-```bash title="person1-vp.json"
-cat > person1-vp.json <<EOF
+```bash title="person-vp.json"
+cat > person-vp.json <<EOF
 {
   "@context": "https://www.w3.org/2018/credentials/v1",
   "type": ["VerifiablePresentation"],
   "holder": "$(cat owner.did)",
-  "verifiableCredential": $(cat person1-vc-did-signed.json)
+  "verifiableCredential": $(cat person-vc-did-signed.json)
 }
 EOF
 ```
 
 Finally, sign the presentation with the correct proof parameters:
 
-```bash title="person1-vp-did-signed.json"
-VERIFICATION_METHOD="$(docker run --rm identinet/didkit-cli:0.3.2-1 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
-DOMAIN="$(jq -r .domain person1-vp-proof-parameters.json)"
-CHALLENGE="$(jq -r .challenge person1-vp-proof-parameters.json)"
-docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" identinet/didkit-cli:0.3.2-1 presentation issue \
-  -k owner.jwk -p assertionMethod -t Ed25519Signature2018 -v "$VERIFICATION_METHOD" -d "$DOMAIN" -c "$CHALLENGE" \
-< person1-vp.json > person1-vp-signed.json
+```bash title="person-vp-did-signed.json"
+VERIFICATION_METHOD="$(docker run --rm identinet/didkit-cli:0.3.2-4 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
+DOMAIN="$(jq -r .domain person-vp-proof-parameters.json)"
+CHALLENGE="$(jq -r .challenge person-vp-proof-parameters.json)"
+PROOF_PURPOSE="$(jq -r .proof_purpose person-vp-proof-parameters.json)"
+docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" identinet/didkit-cli:0.3.2-4 presentation issue \
+  -k owner.jwk -p "$PROOF_PURPOSE" -t Ed25519Signature2018 -v "$VERIFICATION_METHOD" -d "$DOMAIN" -C "$CHALLENGE" \
+< person-vp.json > person-vp-signed.json
 ```
 
 ### Register DID on server
@@ -204,13 +207,13 @@ docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" identinet/didkit
 The last step is to submit the signed presentation to the server:
 
 ```bash
-curl -f -X POST -d @person1-vp-signed.json http://localhost:3000/person1/did.json
+curl --fail-with-body -X POST -d @person-vp-signed.json http://localhost:8000/person/did.json
 ```
 
 Let's retrieve the DID document from did-web-server for inspection:
 
 ```bash
-curl -f http://localhost:3000/person1/did.json | jq
+curl --fail-with-body http://localhost:8000/person/did.json | jq
 ```
 
 Congratulations, you've registered the first DID! 🎉 To make the server fully operational, a TLS certificate is

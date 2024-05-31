@@ -52,29 +52,35 @@ cat localhost.pem localhost-key.pem > cert.pem
 3. Now, let's enable the certificate in the configuration:
 
 ```bash title=".env" {7}
-DWS_OWNER=did:key:xxxx # Put the created or existing DID here.
-DWS_EXTERNAL_HOSTNAME=localhost # Hostname and port determine the DIDs that are managed by this server, e.g. did:web:id.localhost%3A3000:xyz.
-DWS_EXTERNAL_PORT=3000 # Set DWS_PORT and DWS_EXTERNAL_PORT to the same value for this test.
-DWS_PORT=3000 # Set DWS_PORT and DWS_EXTERNAL_PORT to the same value for this test.
-DWS_BACKEND=file # Store DIDs on the local file system.
-DWS_BACKEND_FILE_STORE=/server/did_store # DIDs will be stored in the `dids` folder below your current directory.
-DWS_TLS=/server/cert.pem # For compatibilty with DID resolvers, a certificate is required. It will be added later.
+# Put the created or an existing DID here.
+DWS_OWNER=did:key:xxxx
+# Set DWS_ADDRESS to bind to all IPv4 and IPv6 addresses so the service can be exposed to the local computer.
+DWS_ADDRESS=::
+# Hostname and port determine the DIDs that are managed by this server, e.g. did:web:id.localhost%3A8000:xyz.
+DWS_EXTERNAL_HOSTNAME=localhost
+# Store DIDs on the local file system.
+DWS_BACKEND=file
+# DIDs will be stored in the `dids` folder below your current directory.
+DWS_BACKEND_FILE_STORE=/run/dws/did_store
+DWS_LOG_LEVEL=normal
+# For compatibilty with DID resolvers, a certificate is required. It will be added later.
+DWS_TLS=/run/dws/cert.pem
 ```
 
 4. With the updated configuration in place, let's restart the server:
 
 ```bash
-docker run -it --rm -p 3000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/server" -w "/server" registry.41ppl.com/did-web-server:latest
+docker run -it --rm -p 8000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD:/server" -w "/server" registry.41ppl.com/did-web-server:latest
 ```
 
 ### Test functionality
 
 The validity of the test server's certificate can be tested by either visiting
-[https://localhost:3000/person1/did.json](https://localhost:3000/person1/did.json) in the browser or running the
-following command:
+[https://localhost:8000/person/did.json](https://localhost:8000/person/did.json) in the browser or running the following
+command:
 
 ```bash
-curl -f https://localhost:3000/person1/did.json
+curl -f https://localhost:8000/person/did.json
 echo $? # If everything is set up correctly, the output will be: 0
 ```
 

@@ -12,7 +12,7 @@ use crate::utils::get_env;
 ///
 /// * `external_hostname` - Hostname for `did:web:<hostname>`. Set via EXTERNAL_HOSTNAME variable, e.g. `example.com`
 /// * `external_path` - Path to the identity `did:web:<domainname>:<path>/<id>. Set via SUBPATH variable, e.g. `users`
-/// * `external_port` - , e.g. `example.com`
+/// * `external_port` - , e.g. `8000`
 /// * `owner_did` - DID of the server's owner
 /// * `reslover_options` - Directory to store the DID Documents at, default: `$PWD/did_store`
 /// * `store` - Store for DID Documents
@@ -123,7 +123,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             external_hostname: "localhost".to_string(),
-            external_port: "3000".to_string(),
+            external_port: "8000".to_string(),
             external_path: "/".to_string(),
             owner: "<invalidDID>".to_string(),
             reslover_options: ResolverOptions {

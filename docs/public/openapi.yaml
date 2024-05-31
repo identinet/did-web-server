@@ -56,9 +56,9 @@ info:
 servers:
   # - url: https://identinet.io
   #   description: identinet ID service
-  - url: https://localhost:3000
+  - url: https://localhost:8000
     description: Local HTTPS development server
-  - url: http://localhost:3000
+  - url: http://localhost:8000
     description: Local HTTP development server
 
 paths:
@@ -210,13 +210,13 @@ components:
       type: string
       description: |
         **ID**: An identifier.
-      example: user1
+      example: person
 
     DID:
       type: string
       description: |
         **DID**: W3C Decentralized Identifier (DID), see https://w3c.github.io/did-core/.
-      example: did:web:example.com:user1
+      example: did:web:example.com:person
 
     ProofParameters:
       type: object
@@ -252,10 +252,10 @@ components:
           example: authentication
       example:
         {
-          "did": "did:web:example.com:user1",
-          "challenge": "f8e9a33856ec54be26d62689a73809713d803344bd0f522709bd0a5e0b0832b5",
+          "did": "did:web:example.com:person",
+          "challenge": "afd96f3ee6a8cb00f983e54819ab53466fe825b9d749b5b4eb6d12f09331d440",
           "domain": "example.com",
-          "proof_purpose": "assertion",
+          "proof_purpose": "authentication",
         }
 
     DIDDoc:

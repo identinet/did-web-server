@@ -82,7 +82,7 @@
               # Valid values, see: https://github.com/moby/docker-image-spec
               # and https://oci-playground.github.io/specs-latest/
               ExposedPorts = {
-                "3000/tcp" = { };
+                "8000/tcp" = { };
               };
               Entrypoint = [ "${tini}/bin/tini" "--" ];
               Cmd = [ "${did_web_server_pkg}/bin/did-web-server" ];
