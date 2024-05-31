@@ -205,7 +205,7 @@ impl fmt::Display for DIDSegment {
 impl DIDSegment {
     fn from(segment: &str) -> Result<DIDSegment, DIDError> {
         // ensure that each segment conforms to the DID Syntax specification: https://w3c.github.io/did-core/#did-syntax
-        let re = Regex::new(r"^([a-zA-Z._-]|%[A-F][A-F])+$").unwrap();
+        let re = Regex::new(r"^[0-9a-zA-Z._-]+$").unwrap();
         if re.is_match(segment) {
             Ok(DIDSegment(segment.to_owned()))
         } else {
