@@ -126,16 +126,29 @@ impl FileStore {
                 Ok(_) => Ok(filename),
                 Err(e) => Err(e),
             })
-            // Store DID doc in file
+            .and_then(|filename| {
+                // Create parent directory if it doesn't exist
+                println!("fn: {:?}", filename.to_str());
+                match filename.parent() {
+                    Some(parent) => {
+                        if !parent.exists() {
+                            return std::fs::create_dir_all(parent)
+                                .map_err(|e| DIDError::NoFileWrite(e.to_string()))
+                                .map(|()| filename);
+                        }
+                        Ok(filename)
+                    }
+                    None => Err(DIDError::NoFileWrite(
+                        "Unable to obtain directory for storing DID document in".to_string(),
+                    )),
+                }
+            })
             // Store DID document in file
             .and_then(|filename| {
                 // TODO: externalize into a separate function store_did_doc
                 std::fs::File::create(filename)
                     .map_err(|e| DIDError::NoFileWrite(e.to_string()))
                     .and_then(|mut f| {
-                        // rocket::serde::json::to_string(&doc)
-                        // ah, ich muss da direkt das document hineinstecken, denn das ist serializable ..
-                        // wie kommen an das document?
                         serde_json::to_string(&doc)
                             .map_err(|e| DIDError::ContentConversion(e.to_string()))
                             .and_then(|s| {
