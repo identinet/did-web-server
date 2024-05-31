@@ -124,18 +124,21 @@ async fn create(
     verify_issuer(
         config,
         controlling_did,
-        VerificationRelationship::AssertionMethod,
+        VerificationRelationship::Authentication,
         &presentation,
     )
     .await?;
+    println!("verified issuer");
     let proof_parameters = ProofParameters::new(config, &id)?;
+    println!("proof parameters {:?}", proof_parameters);
     let (_result, _vc, did_doc) =
         verify_presentation(config, proof_parameters, presentation).await?;
 
+    println!("verified presentation {:?}, {:?}", _result, did_doc);
     // INFO: unsure how to easily convert a CredentialSubject into a Document. Via json encoding? - not beautiful!!
     let did_doc = serde_json::to_string(&did_doc)
         .ok()
-        // .map(log("json"))
+        .map(log("json"))
         .and_then(|s| serde_json::from_str::<Document>(&s).ok());
     match did_doc {
         Some(document) => config
@@ -165,11 +168,11 @@ async fn update(
     presentation: Json<Presentation>,
 ) -> Result<Json<ProofParameters>, DIDError> {
     // The user is the only one allowed to update the personal DID document
-    let controlling_did = DIDWeb::from_config(&config, &id)?.to_string();
+    let controlling_did = DIDWeb::from_config(config, &id)?.to_string();
     verify_issuer(
         config,
         &controlling_did,
-        VerificationRelationship::AssertionMethod,
+        VerificationRelationship::Authentication,
         &presentation,
     )
     .await?;
@@ -214,7 +217,7 @@ async fn delete(
     verify_issuer(
         config,
         controlling_did,
-        VerificationRelationship::AssertionMethod,
+        VerificationRelationship::Authentication,
         &presentation,
     )
     .await?;

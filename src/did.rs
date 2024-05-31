@@ -47,7 +47,7 @@ impl ProofParameters {
             did: did.to_string(),
             challenge: None,
             domain: config.external_hostname.to_string(),
-            proof_purpose: ProofPurpose::AssertionMethod,
+            proof_purpose: ProofPurpose::Authentication,
         }
     }
 }
