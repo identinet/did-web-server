@@ -2,6 +2,7 @@
 title: Local Test Server
 sidebar:
   order: 1
+  hidden: true
 ---
 
 First, follow the instructions in the [Getting Started Guide](/getting-started). Then continue with this guide.
@@ -37,19 +38,13 @@ Ensure that the previous command completed successfully before proceeding to the
 To issue the certificate for the test server, first switch to the directory in which you created the server's
 configuration (see [Getting Started Guide](/getting-started)). Then follow these step to issue and use the certificate:
 
-1. Issue certificate:
+1. Create private key and issue certificate:
 
 ```bash
 mkcert localhost
 ```
 
-2. Two new files have been generated, `localhost.pem` and `localhost-key.pem`. They need to be combined into one file:
-
-```bash
-cat localhost.pem localhost-key.pem > cert.pem
-```
-
-3. Now, let's enable the certificate in the configuration:
+2. Now, let's enable the certificate in the configuration:
 
 ```bash title=".env" {7}
 # Put the created or an existing DID here.
@@ -64,7 +59,7 @@ DWS_BACKEND=file
 DWS_BACKEND_FILE_STORE=/run/dws/did_store
 DWS_LOG_LEVEL=normal
 # For compatibilty with DID resolvers, a certificate is required. It will be added later.
-DWS_TLS=/run/dws/cert.pem
+DWS_TLS={certs="localhost.pem",key="localhost-key.pem"}
 ```
 
 4. With the updated configuration in place, let's restart the server:

@@ -46,7 +46,7 @@ DWS_BACKEND=file
 DWS_BACKEND_FILE_STORE=/run/dws/did_store
 DWS_LOG_LEVEL=normal
 # For compatibilty with DID resolvers, a certificate is required. It will be added later.
-# DWS_TLS=/run/dws/cert.pem
+# DWS_TLS={certs="localhost.pem",key="localhost-key.pem"}
 ```
 
 The `localhost` hostname (variable `DWS_EXTERNAL_HOSTNAME`) works on every operating system without additional
@@ -65,7 +65,7 @@ docker run -it --rm -p 8000:8000 --env-file .env -u "$(id -u):$(id -g)" -v "$PWD
 Congratulations, the server is up and running! It does not contain any DID, yet. Let's create the first DID:
 `did:web:localhost%3A8000:person`
 
-did-web-server is using DIDs, Verifiable Credentials (VCs) and Verfiable Presentations (VPs) to verify access and encode
+did-web-server uses DIDs, Verifiable Credentials (VCs) and Verfiable Presentations (VPs) to verify access and encode
 data. The following diagram depicts the preparation process for a DID document to be sent to and stored on the server:
 
 1. First, a cryptographic key is created or an existing key is selected.
@@ -149,7 +149,7 @@ EOF
 Sign credential:
 
 ```bash title="person-vc-did-signed.json"
-VERIFICATION_METHOD="$(docker run --rm identinet/didkit-cli:0.3.2-4 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
+VERIFICATION_METHOD="$(docker run --rm --expose 8000:8000 identinet/didkit-cli:0.3.2-4 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
 docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" identinet/didkit-cli:0.3.2-4 credential issue \
   -k owner.jwk -p assertionMethod -t Ed25519Signature2018 -v "$VERIFICATION_METHOD" < person-vc-did.json > person-vc-did-signed.json
 ```
@@ -193,7 +193,7 @@ EOF
 Finally, sign the presentation with the correct proof parameters:
 
 ```bash title="person-vp-did-signed.json"
-VERIFICATION_METHOD="$(docker run --rm identinet/didkit-cli:0.3.2-4 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
+VERIFICATION_METHOD="$(docker run --rm --expose 8000:8000 identinet/didkit-cli:0.3.2-4 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
 DOMAIN="$(jq -r .domain person-vp-proof-parameters.json)"
 CHALLENGE="$(jq -r .challenge person-vp-proof-parameters.json)"
 PROOF_PURPOSE="$(jq -r .proof_purpose person-vp-proof-parameters.json)"

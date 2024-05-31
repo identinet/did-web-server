@@ -42,6 +42,7 @@ dev: githooks generate-owner-key
     $env.DWS_BACKEND = file
     $env.DWS_OWNER = (didkit key-to-did -k owner.jwk)
     $env.DWS_LOG_LEVEL = normal
+    # $env.DWS_TLS = '{certs="localhost.pem",key="localhost-key.pem"}'
     cargo watch -w src -x run
 
 # Fast check to verify that the codes still compiles
@@ -158,7 +159,7 @@ release LEVEL="patch" NEW_VERSION="":
     cargo update $manifest.name; git add Cargo.lock
     open README.md | str replace -a $current_version $new_version | save _README.md; mv _README.md README.md; git add README.md
     open -r ./docs/public/openapi.yaml | str replace -a $"version: \"($current_version)\"" $"version: \"($new_version)\"" | save ./docs/public/_openapi.yaml; mv ./docs/public/_openapi.yaml ./docs/public/openapi.yaml; git add ./docs/public/openapi.yaml
-    open -r ./docs/src/content/docs/getting-started.md | str replace -a $"identinet/did-web-server:($current_version)" $"identinet/did-web-server:($new_version)" | save ./docs/src/content/docs/_getting-started.md; mv ./docs/src/content/docs/_getting-started.md ./docs/src/content/docs/getting-started.md; git add ./docs/src/content/docs/getting-started.md
+    sed -i -e $"s,identinet/did-web-server:($current_version),identinet/did-web-server:($new_version),g" docs/src/**/*.md; git add docs/src/**/*.md
     git cliff -t $new_version -o CHANGELOG.md; git add CHANGELOG.md
     git commit -n -m $"Release version ($new_version)"
     just docker-build

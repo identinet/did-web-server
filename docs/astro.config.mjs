@@ -61,10 +61,10 @@ export default defineConfig({
 					label: 'Deployment',
 					autogenerate: { directory: 'deployment' },
 				},
-				// {
-				// 	label: 'DID Management',
-				// 	autogenerate: { directory: 'did-management' },
-				// },
+				{
+					label: 'DID Management',
+					autogenerate: { directory: 'did-management' },
+				},
 				{ label: 'Congratulations', link: '/congratulations' },
 				...openAPISidebarGroups
 			],
