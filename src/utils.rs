@@ -73,7 +73,11 @@ pub fn get_did_doc_from_presentation(
                             |acc, credential_subject| {
                                 let id_equals_proof_parameter_did =
                                     credential_subject.id.as_ref().and_then(|id| {
-                                        // println!("credential subject: {:?}", id.to_string());
+                                        println!(
+                                            "credential subject DID: {:?}; expected DID: {:?}",
+                                            id.to_string(),
+                                            did
+                                        );
                                         if id.to_string() == did {
                                             Some(true)
                                         } else {
