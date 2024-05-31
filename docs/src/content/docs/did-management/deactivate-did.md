@@ -4,19 +4,19 @@ sidebar:
   order: 4
 ---
 
-Deactivating a DID is a resverved operation for the server's owner. The steps for registering a DID are described in the
+Deactivating a DID is a reserved operation for the server's owner. The steps for registering a DID are described in the
 [Getting Started guide](/getting-started).
 
 ## Deactivate did:web DID
 
-did-web-server uses DIDs, Verifiable Credentials (VCs) and Verfiable Presentations (VPs) to verify access and encode
+did-web-server uses DIDs, Verifiable Credentials (VCs) and Verifiable Presentations (VPs) to verify access and encode
 data. The following diagram depicts the preparation process for removing a DID document from the server:
 
-1. The DID document is reqiured and can be fetched from the server.
+1. The DID document is required and can be fetched from the server.
 2. A Verifiable Credential is created that includes the DID document. The VC is signed by an authorized key.
 3. A Verifiable Presentation is created that includes the VC. The VP is signed by an authorized key. To mitigate replay
    attacks, the VP must also contain specific proof parameters that can be retrieved from did-web-server.
-4. If the submitted VP and VC are successfully verfied, the included DID document is removed from the server.
+4. If the submitted VP and VC are successfully verified, the included DID document is removed from the server.
 
 ![Component diagram for creating and updating a DID document](/figures/did-creation-components.svg)
 
@@ -60,7 +60,7 @@ docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" --network=host i
 ### Place Verifiable Credential in Verifiable Presentation
 
 The last step in preparing the data for submission is to place the signed Verifiable Credential within a Verifiable
-Presentation and secure the registration against replay attacks. did-web-server prevents reply attacks i.e. the
+Presentation and secure the registration against replay attacks. did-web-server prevents reply attacks, i.e. the
 observation and resubmission of a valid presentation with the goal of overwriting the current configuration of the DID,
 by expecting the hash of the current DID document to be present as a
 [challenge](https://www.w3.org/TR/vc-data-integrity/#proofs) in the proof section of the Verifiable Presentation,
