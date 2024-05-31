@@ -39,8 +39,9 @@ generate-owner-key:
 # Continuously run and build application for development purposes
 dev: githooks generate-owner-key
     #!/usr/bin/env nu
-    let-env DWS_BACKEND = file
-    let-env DWS_OWNER = (didkit key-to-did -k owner.jwk)
+    $env.DWS_BACKEND = file
+    $env.DWS_OWNER = (didkit key-to-did -k owner.jwk)
+    $env.DWS_LOG_LEVEL = normal
     cargo watch -w src -x run
 
 # Fast check to verify that the codes still compiles
