@@ -101,7 +101,9 @@ pub fn get_did_doc_from_presentation(
                     |acc, credential| if acc.is_none() { credential } else { acc },
                 )
         })
-        .ok_or_else(|| DIDError::DIDDocMissing("No valid DID Doc credential found".to_string()))
+        .ok_or_else(|| {
+            DIDError::DIDDocMissing("No valid DID document credential found".to_string())
+        })
 }
 
 /// Ensures that a date is in the correct order to a reference date, e.g. to ensure that the date
@@ -200,7 +202,7 @@ pub async fn verify_issuer(
                 Ok(true)
             } else {
                 Err(DIDError::PresentationInvalid(
-                    "Presentation invalid, no proof has been signed by expected did".to_string(),
+                    "Presentation invalid, no proof has been signed by expected DID".to_string(),
                 ))
             }
         })
@@ -213,7 +215,7 @@ pub async fn verify_issuer(
 //     did_doc
 //         .id
 //         .ok_or(DIDError::DIDMismatch(format!(
-//             "DID Doc is missing id with value {}",
+//             "DID document is missing id with value {}",
 //             did
 //         )))
 //         .and_then(|id| {
@@ -221,7 +223,7 @@ pub async fn verify_issuer(
 //                 return Ok(true);
 //             }
 //             Err(DIDError::DIDMismatch(format!(
-//                 "DID Doc has been issued for {} instead of {}",
+//                 "DID document has been issued for {} instead of {}",
 //                 id, did
 //             )))
 //         })
@@ -279,7 +281,7 @@ pub async fn verify_presentation(
     // ensure that inssuance_date is not in the future
     compare_date(&vc.issuance_date, Ordering::Less, Utc::now()).ok_or_else(|| {
         DIDError::PresentationInvalid(
-            "Presentation invalid, DID Doc credential has been issued in the future or has no issuance date".to_string(),
+            "Presentation invalid, DID document credential has been issued in the future or has no issuance date".to_string(),
             ) })?;
 
     // verify expiration_date as it's not verified by verify() https://github.com/spruceid/ssi/issues/470
@@ -291,7 +293,7 @@ pub async fn verify_presentation(
         )
         .ok_or_else(|| {
             DIDError::PresentationInvalid(
-                "Presentation invalid, DID Doc credential has expired".to_string(),
+                "Presentation invalid, DID document credential has expired".to_string(),
             )
         }),
         _ => Ok(Ordering::Greater),

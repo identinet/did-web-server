@@ -148,7 +148,7 @@ async fn create(
             .map_err(log("post, got error:"))
             .map(Json)
             .map(CustomStatus::Created),
-        None => Err(DIDError::DIDDocMissing("DID Doc invalid".to_string())),
+        None => Err(DIDError::DIDDocMissing("DID document invalid".to_string())),
     }
 }
 
@@ -194,7 +194,7 @@ async fn update(
             .and_then(|_| ProofParameters::new(config, &id))
             .map_err(log("post, got error:"))
             .map(Json),
-        None => Err(DIDError::DIDDocMissing("DID Doc invalid".to_string())),
+        None => Err(DIDError::DIDDocMissing("DID document invalid".to_string())),
     }
 }
 

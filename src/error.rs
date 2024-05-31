@@ -1,4 +1,4 @@
-use std::fmt;
+use rocket::response::Responder;
 
 /// Custom response status
 #[derive(Responder)]
@@ -39,22 +39,22 @@ pub enum DIDError {
 
 impl std::error::Error for DIDError {}
 
-impl fmt::Display for DIDError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for DIDError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            DIDError::ContentConversion(e) => write!(f, "{}", e),
-            DIDError::NoFileRead(e) => write!(f, "{}", e),
-            DIDError::NoFileWrite(e) => write!(f, "{}", e),
-            DIDError::NoFileName(e) => write!(f, "{}", e),
-            DIDError::DIDExists(e) => write!(f, "{}", e),
-            DIDError::IllegalCharacter(e) => write!(f, "{}", e),
-            DIDError::DIDMismatch(e) => write!(f, "{}", e),
-            DIDError::DIDDocMissing(e) => write!(f, "{}", e),
-            DIDError::DIDNotFound(e) => write!(f, "{}", e),
-            DIDError::DIDPortNotAllowed(e) => write!(f, "{}", e),
-            DIDError::PresentationInvalid(e) => write!(f, "{}", e),
-            DIDError::UnknownBackend(e) => write!(f, "{}", e),
-            DIDError::OwnerMissing(e) => write!(f, "{}", e),
+            DIDError::ContentConversion(e) => write!(fmt, "Error {}.", e),
+            DIDError::NoFileRead(e) => write!(fmt, "Error {}.", e),
+            DIDError::NoFileWrite(e) => write!(fmt, "Error {}.", e),
+            DIDError::NoFileName(e) => write!(fmt, "Error {}.", e),
+            DIDError::DIDExists(e) => write!(fmt, "Error {}.", e),
+            DIDError::IllegalCharacter(e) => write!(fmt, "Error {}.", e),
+            DIDError::DIDMismatch(e) => write!(fmt, "Error {}.", e),
+            DIDError::DIDDocMissing(e) => write!(fmt, "Error {}.", e),
+            DIDError::DIDNotFound(e) => write!(fmt, "Error {}.", e),
+            DIDError::DIDPortNotAllowed(e) => write!(fmt, "Error {}.", e),
+            DIDError::PresentationInvalid(e) => write!(fmt, "Error {}.", e),
+            DIDError::UnknownBackend(e) => write!(fmt, "Error {}.", e),
+            DIDError::OwnerMissing(e) => write!(fmt, "Error {}.", e),
         }
     }
 }

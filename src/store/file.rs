@@ -127,6 +127,7 @@ impl FileStore {
                 Err(e) => Err(e),
             })
             // Store DID doc in file
+            // Store DID document in file
             .and_then(|filename| {
                 // TODO: externalize into a separate function store_did_doc
                 std::fs::File::create(filename)

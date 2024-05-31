@@ -116,7 +116,7 @@ async fn integration_create() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .post(uri!(super::create(
             id = PathBuf::from("valid-did/did.json"),
@@ -181,7 +181,7 @@ async fn integration_create() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .post(uri!(super::create(
             id = PathBuf::from("valid-did/did.json"),
@@ -292,7 +292,7 @@ async fn integration_create() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .post(uri!(super::create(
             id = PathBuf::from("valid-did/did.json"),
@@ -357,7 +357,7 @@ async fn integration_create() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .post(uri!(super::create(
             id = PathBuf::from("invalid-diddoc/did.json"),
@@ -460,7 +460,7 @@ async fn integration_update() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .post(uri!(super::create(
             id = PathBuf::from("valid-did/did.json"),
@@ -525,7 +525,7 @@ async fn integration_update() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .put(uri!(super::update(
             id = PathBuf::from("valid-did/did.json"),
@@ -536,7 +536,7 @@ async fn integration_update() {
     assert_eq!(
         response.status(),
         Status::Unauthorized,
-        "When the owner of the server sends a valid Presentation but the DID Doc exists, then 401 - Unauthorized is returned."
+        "When the owner of the server sends a valid Presentation but the DID document exists, then 401 - Unauthorized is returned."
     );
 
     // update
@@ -598,7 +598,7 @@ async fn integration_update() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .put(uri!(super::update(
             id = PathBuf::from("valid-did/did.json"),
@@ -661,7 +661,7 @@ async fn integration_update() {
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
     // println!("presentation: {}", presentation_string);
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .put(uri!(super::update(
             id = PathBuf::from("valid-did/did.json"),
@@ -716,7 +716,7 @@ async fn integration_update() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .put(uri!(super::update(
             id = PathBuf::from("valid-did/did.json"),
@@ -779,7 +779,7 @@ async fn integration_update() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .put(uri!(super::update(
             id = PathBuf::from("valid-did/did.json"),
@@ -790,10 +790,10 @@ async fn integration_update() {
     assert_eq!(
             response.status(),
             Status::BadRequest,
-            "When a valid Presentation with a non-matching subject in the DID Doc credential is sent, then 400 - Bad Request is returned."
+            "When a valid Presentation with a non-matching subject in the DID document credential is sent, then 400 - Bad Request is returned."
         );
 
-    // Attempted update with holder not matching DID Doc ID
+    // Attempted update with holder not matching DID document ID
     // -------------------------------------------
     let response = client
         .get(uri!(super::get_proof_parameters(
@@ -850,7 +850,7 @@ async fn integration_update() {
     assert_eq!(
             response.status(),
             Status::Unauthorized,
-            "When a valid Presentation and DID Doc is sent but the Presentation holder doesn't match the DID Doc id, then 403 - Unauthorized is returned."
+            "When a valid Presentation and DID document is sent but the Presentation holder doesn't match the DID document id, then 403 - Unauthorized is returned."
         );
 }
 
@@ -929,7 +929,7 @@ async fn integration_delete() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .post(uri!(super::create(
             id = PathBuf::from("valid-did/did.json"),
@@ -996,7 +996,7 @@ async fn integration_delete() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .delete(uri!(super::delete(
             id = PathBuf::from("valid-did/did.json"),
@@ -1061,7 +1061,7 @@ async fn integration_delete() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .delete(uri!(super::delete(
             id = PathBuf::from("valid-did/did.json"),
@@ -1126,7 +1126,7 @@ async fn integration_delete() {
     )
     .await;
     let presentation_string = serde_json::to_string(&presentation).unwrap();
-    // update did doc via presentation
+    // update did document via presentation
     let response = client
         .delete(uri!(super::delete(
             id = PathBuf::from("valid-did/did.json"),
