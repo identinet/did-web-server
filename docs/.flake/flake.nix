@@ -3,7 +3,7 @@
 
   # inputs.nixpkgs.url = "github:identinet/nixpkgs/identinet";
   inputs.nixpkgs_unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
   outputs = { self, nixpkgs, nixpkgs_unstable, flake-utils }:
