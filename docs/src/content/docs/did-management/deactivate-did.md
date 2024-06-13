@@ -52,8 +52,8 @@ EOF
 Sign credential:
 
 ```bash title="person-vc-did-signed.json"
-VERIFICATION_METHOD="$(docker run --rm --network=host identinet/didkit-cli:0.3.2-4 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
-docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" --network=host identinet/didkit-cli:0.3.2-4 credential issue \
+VERIFICATION_METHOD="$(docker run --rm --network=host identinet/didkit-cli:0.3.2-5 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
+docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" --network=host identinet/didkit-cli:0.3.2-5 credential issue \
   -k owner.jwk -p assertionMethod -t Ed25519Signature2018 -v "$VERIFICATION_METHOD" < person-vc-did.json > person-vc-did-signed.json
 ```
 
@@ -89,11 +89,11 @@ EOF
 Finally, sign the presentation with the correct proof parameters:
 
 ```bash title="person-vp-did-signed.json"
-VERIFICATION_METHOD="$(docker run --rm --network=host identinet/didkit-cli:0.3.2-4 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
+VERIFICATION_METHOD="$(docker run --rm --network=host identinet/didkit-cli:0.3.2-5 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
 DOMAIN="$(jq -r .domain person-vp-proof-parameters.json)"
 CHALLENGE="$(jq -r .challenge person-vp-proof-parameters.json)"
 PROOF_PURPOSE="$(jq -r .proof_purpose person-vp-proof-parameters.json)"
-docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" --network=host identinet/didkit-cli:0.3.2-4 presentation issue \
+docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" --network=host identinet/didkit-cli:0.3.2-5 presentation issue \
   -k owner.jwk -p "$PROOF_PURPOSE" -t Ed25519Signature2018 -v "$VERIFICATION_METHOD" -d "$DOMAIN" -C "$CHALLENGE" \
 < person-vp.json > person-vp-signed.json
 ```
