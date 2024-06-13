@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2024-06-13
+
+### Documentation
+
+- [c6c2f83](https://github.com/identinet/did-web-server/commit/c6c2f83cc663436176f2b7c7ef2fb74ff240828a) Cleanup references to the local test server guide
+- [f8aed27](https://github.com/identinet/did-web-server/commit/f8aed278f54ece87f8d7dc9d75623f7a6870f421) Replace expose configuration with network=host
+- [4dcdd9c](https://github.com/identinet/did-web-server/commit/4dcdd9cd4e5061367550f54e355526e3912015c3) Update examples to use didkit-cli 0.3.2-5
+
+### Miscellaneous Tasks
+
+- [4ee5506](https://github.com/identinet/did-web-server/commit/4ee5506f7b091d805f18bee4529a262401433fff) Update to nixos 24.05
+
 ## [0.3.0] - 2024-05-31
 
 ### Added Features

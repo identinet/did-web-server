@@ -59,4 +59,4 @@ homepage = "https://github.com/identinet/did-web-server"
 keywords = ["ssi", "did", "http"]
 name = "did-web-server"
 repository = "https://github.com/identinet/did-web-server"
-version = "0.3.0"
+version = "0.3.1"
