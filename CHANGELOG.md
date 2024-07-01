@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2024-07-01
+
+### Added Features
+
+- [b3e8120](https://github.com/identinet/did-web-server/commit/b3e8120bc1e67b280a5de99a3c8060af98c54633) Set license to AGPLv3
+
 ## [0.3.1] - 2024-06-13
 
 ### Documentation
