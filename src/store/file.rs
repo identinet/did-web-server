@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0
+
 use std::io::prelude::*;
 
 use ssi::did::Document;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0
+
 // Fail build if feature is requsted, see https://www.reddit.com/r/rust/comments/8oz7md/make_cargo_fail_on_warning/
 #![cfg_attr(feature = "fail-on-warnings", deny(warnings))]
 

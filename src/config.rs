@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0
+
 use std::process;
 
 use ssi::did_resolve::HTTPDIDResolver;

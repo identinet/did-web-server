@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0
+
 use dashmap::DashMap;
 use ssi::did::Document;
 use std::path::Path;

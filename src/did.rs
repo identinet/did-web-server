@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0
+
 use crate::config::Config;
 use crate::error::DIDError;
 use regex::Regex;

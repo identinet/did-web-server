@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0
+
 use chrono::prelude::*;
 use ssi::did_resolve::SeriesResolver;
 
