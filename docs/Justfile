@@ -54,12 +54,14 @@ publish: build
     cp -r dist/* "_websites/{{ WEBSITE }}"
     cd "_websites/{{ WEBSITE }}"
     git add -A .
-    git commit -m "chore: update docs"
-    git push
-    cd -
-    git add "_websites/{{ WEBSITE }}"
-    git commit -n -m "Update docs repository"
-    git push
+    if (git status -s --porcelain | str trim) != "" {
+        git commit -m "chore: update docs"
+        git push
+        cd -
+        git add "_websites/{{ WEBSITE }}"
+        git commit -n -m "Update docs repository"
+        git push
+    }
 
 # Clean files
 clean:
