@@ -10,10 +10,10 @@
   outputs = { self, nixpkgs, nixpkgs-unstable, flake-utils, }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        # pkgs = nixpkgs.legacyPackages.${system};
-        pkgs = import nixpkgs { system = system; config.allowUnfree = true; };
-        unstable = import nixpkgs-unstable { system = system; config.allowUnfree = true; };
-        # unstable = nixpkgs-unstable.legacyPackages.${system};
+        pkgs = nixpkgs.legacyPackages.${system};
+        # pkgs = import nixpkgs { system = system; config.allowUnfree = true; };
+        # unstable = import nixpkgs-unstable { system = system; config.allowUnfree = true; };
+        unstable = nixpkgs-unstable.legacyPackages.${system};
         did_web_server_pkg = unstable.callPackage ./default.nix { };
         manifest = pkgs.lib.importJSON ./manifest.json;
         pkgVersionsEqual = x: y:

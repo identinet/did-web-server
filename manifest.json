@@ -8,7 +8,7 @@
     "Jan Christoph Ebersbach <jan-christoph.ebersbach@identinet.io>"
   ],
   "homepage": "https://github.com/identinet/did-web-server",
-  "license": "agpl3Plus",
+  "license": "AGPL-3.0-or-later",
   "repository":
   {
     "type": "git",

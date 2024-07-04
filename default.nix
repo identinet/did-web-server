@@ -20,7 +20,7 @@ pkgs.rustPlatform.buildRustPackage rec {
   meta = with pkgs.lib; {
     description = manifest.description;
     homepage = manifest.homepage;
-    license = with licenses; [ unfree ];
+    license = with licenses; [ agpl3Plus ];
     maintainers = with maintainers; [ jceb ];
   };
 }
