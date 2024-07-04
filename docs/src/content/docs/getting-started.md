@@ -193,7 +193,7 @@ EOF
 Finally, sign the presentation with the correct proof parameters:
 
 ```bash title="person-vp-did-signed.json"
-VERIFICATION_METHOD="$(docker run --rm --network=host identinet/didkit-cli:0.3.2-5 did resolve "$(cat owner.did)" | jq -r '.assertionMethod.[0]')"
+VERIFICATION_METHOD="$(docker run --rm --network=host identinet/didkit-cli:0.3.2-5 did resolve "$(cat owner.did)" | jq -r '.assertionMethod[0]')"
 DOMAIN="$(jq -r .domain person-vp-proof-parameters.json)"
 CHALLENGE="$(jq -r .challenge person-vp-proof-parameters.json)"
 PROOF_PURPOSE="$(jq -r .proof_purpose person-vp-proof-parameters.json)"
