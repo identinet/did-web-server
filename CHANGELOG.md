@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2024-07-04
+
+### Bug Fixes
+
+- [9e71a4c](https://github.com/identinet/did-web-server/commit/9e71a4c284db143b5747fcbc8fccb8cf43059875) Correct license information
+
+### Documentation
+
+- [c41b9ec](https://github.com/identinet/did-web-server/commit/c41b9ec3fc0381765b954b886606ead9fc958326) Fix jq command for extracting the verification method
+- [a61a5a5](https://github.com/identinet/did-web-server/commit/a61a5a5f26c512ee3ca546fed059b400187b2c9f) Replace localhost with the configured external hostname
+
 ## [0.4.0] - 2024-07-01
 
 ### Added Features
