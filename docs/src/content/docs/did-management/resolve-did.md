@@ -13,5 +13,10 @@ Example:
 - Execute this command to resolve it:
 
 ```bash
-curl --fail-with-body http://localhost:8000/person/did.json | jq
+# Load the configuration into the local shell
+source .env
+```
+
+```bash
+curl --fail-with-body http://${DWS_EXTERNAL_HOSTNAME}:8000/person/did.json | jq
 ```

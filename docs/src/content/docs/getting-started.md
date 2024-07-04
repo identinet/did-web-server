@@ -49,6 +49,11 @@ DWS_LOG_LEVEL=normal
 # DWS_TLS={certs="localhost.pem",key="localhost-key.pem"}
 ```
 
+```bash
+# Load the configuration into the local shell
+source .env
+```
+
 The `localhost` hostname (variable `DWS_EXTERNAL_HOSTNAME`) works on every operating system without additional
 configuration. However, it is only accessible by the local computer. Other systems will not be able to resolve DIDs on
 this server. For testing purposes on your computer, this configuration is fully sufficient.
@@ -99,12 +104,12 @@ cat > person-did.json <<EOF
     "https://www.w3.org/ns/did/v1",
     "https://w3id.org/security/suites/jws-2020/v1"
   ],
-  "id": "did:web:localhost%3A8000:person",
+  "id": "did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person",
   "verificationMethod": [
     {
-      "id": "did:web:localhost%3A8000:person#key1",
+      "id": "did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person#key1",
       "type": "JsonWebKey2020",
-      "controller": "did:web:localhost%3A8000:person",
+      "controller": "did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person",
       "publicKeyJwk": {
         "kty": "OKP",
         "crv": "Ed25519",
@@ -112,8 +117,8 @@ cat > person-did.json <<EOF
       }
     }
   ],
-  "authentication": ["did:web:localhost%3A8000:person#key1"],
-  "assertionMethod": ["did:web:localhost%3A8000:person#key1"]
+  "authentication": ["did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person#key1"],
+  "assertionMethod": ["did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person#key1"]
 }
 EOF
 ```
@@ -167,7 +172,7 @@ The first step of placing the Verifiable Credential inside a Verifiable Presenta
 for the DID:
 
 ```bash title="person-vp-proof-parameters.json"
-curl --fail-with-body -o person-vp-proof-parameters.json http://localhost:8000/person/did.json?proofParameters
+curl --fail-with-body -o person-vp-proof-parameters.json http://${DWS_EXTERNAL_HOSTNAME}:8000/person/did.json?proofParameters
 ```
 
 :::note
@@ -207,13 +212,13 @@ docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" --network=host i
 The last step is to submit the signed presentation to the server:
 
 ```bash
-curl --fail-with-body -X POST -d @person-vp-signed.json http://localhost:8000/person/did.json
+curl --fail-with-body -X POST -d @person-vp-signed.json http://${DWS_EXTERNAL_HOSTNAME}:8000/person/did.json
 ```
 
 Let's retrieve the DID document from did-web-server for inspection:
 
 ```bash
-curl --fail-with-body http://localhost:8000/person/did.json | jq
+curl --fail-with-body http://${DWS_EXTERNAL_HOSTNAME}:8000/person/did.json | jq
 ```
 
 Congratulations, you've registered the first DID! 🎉 From here, you can either move on and explore

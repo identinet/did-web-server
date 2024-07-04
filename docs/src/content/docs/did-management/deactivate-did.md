@@ -24,8 +24,13 @@ data. The following diagram depicts the preparation process for removing a DID d
 
 Execute the following command to create the DID document that includes both public keys:
 
+```bash
+# Load the configuration into the local shell
+source .env
+```
+
 ```bash title="person-did.json"
-curl --fail-with-body -o person-did.json http://localhost:8000/person/did.json
+curl --fail-with-body -o person-did.json http://${DWS_EXTERNAL_HOSTNAME}:8000/person/did.json
 ```
 
 ### Place DID document in Verifiable Credential
@@ -70,7 +75,7 @@ The first step of placing the Verifiable Credential inside a Verifiable Presenta
 for the DID:
 
 ```bash title="person-vp-proof-parameters.json"
-curl --fail-with-body -o person-vp-proof-parameters.json http://localhost:8000/person/did.json?proofParameters
+curl --fail-with-body -o person-vp-proof-parameters.json http://${DWS_EXTERNAL_HOSTNAME}:8000/person/did.json?proofParameters
 ```
 
 With the proof parameters in place, the next step is to create the presentation:
@@ -103,13 +108,13 @@ docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" --network=host i
 The last step is to submit the signed presentation to the server:
 
 ```bash
-curl --fail-with-body -X DELETE -d @person-vp-signed.json http://localhost:8000/person/did.json
+curl --fail-with-body -X DELETE -d @person-vp-signed.json http://${DWS_EXTERNAL_HOSTNAME}:8000/person/did.json
 ```
 
 Let's verify that the DID document doesn't exist anymore:
 
 ```bash
-curl --fail-with-body http://localhost:8000/person/did.json
+curl --fail-with-body http://${DWS_EXTERNAL_HOSTNAME}:8000/person/did.json
 ```
 
 Congratulations, you've deleted the DID document! 🎉

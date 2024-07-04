@@ -30,6 +30,11 @@ server:
 Every DID requires a public private key pair. We can reuse the previous command to create another key pair for the new
 DID:
 
+```bash
+# Load the configuration into the local shell
+source .env
+```
+
 ```bash title="person.jwk"
 docker run --rm identinet/didkit-cli:0.3.2-5 key generate ed25519 > person.jwk2
 ```
@@ -37,7 +42,7 @@ docker run --rm identinet/didkit-cli:0.3.2-5 key generate ed25519 > person.jwk2
 Let's store the DID in a file for quick access:
 
 ```bash title="person.did
-echo "did:web:localhost%3A8000:person" > person.did
+echo "did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person" > person.did
 ```
 
 ### Update DID document
@@ -51,12 +56,12 @@ cat > person-did.json <<EOF
     "https://www.w3.org/ns/did/v1",
     "https://w3id.org/security/suites/jws-2020/v1"
   ],
-  "id": "did:web:localhost%3A8000:person",
+  "id": "did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person",
   "verificationMethod": [
     {
-      "id": "did:web:localhost%3A8000:person#key1",
+      "id": "did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person#key1",
       "type": "JsonWebKey2020",
-      "controller": "did:web:localhost%3A8000:person",
+      "controller": "did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person",
       "publicKeyJwk": {
         "kty": "OKP",
         "crv": "Ed25519",
@@ -64,9 +69,9 @@ cat > person-did.json <<EOF
       }
     },
     {
-      "id": "did:web:localhost%3A8000:person#key2",
+      "id": "did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person#key2",
       "type": "JsonWebKey2020",
-      "controller": "did:web:localhost%3A8000:person",
+      "controller": "did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person",
       "publicKeyJwk": {
         "kty": "OKP",
         "crv": "Ed25519",
@@ -74,8 +79,8 @@ cat > person-did.json <<EOF
       }
     }
   ],
-  "authentication": ["did:web:localhost%3A8000:person#key1", "did:web:localhost%3A8000:person#key2"],
-  "assertionMethod": ["did:web:localhost%3A8000:person#key1",  "did:web:localhost%3A8000:person#key2"]
+  "authentication": ["did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person#key1", "did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person#key2"],
+  "assertionMethod": ["did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person#key1",  "did:web:${DWS_EXTERNAL_HOSTNAME}%3A8000:person#key2"]
 }
 EOF
 ```
@@ -122,7 +127,7 @@ The first step of placing the Verifiable Credential inside a Verifiable Presenta
 for the DID:
 
 ```bash title="person-vp-proof-parameters.json"
-curl --fail-with-body -o person-vp-proof-parameters.json http://localhost:8000/person/did.json?proofParameters
+curl --fail-with-body -o person-vp-proof-parameters.json http://${DWS_EXTERNAL_HOSTNAME}:8000/person/did.json?proofParameters
 ```
 
 With the proof parameters in place, the next step is to create the presentation:
@@ -155,13 +160,13 @@ docker run -i --rm -u "$(id -u):$(id -g)" -v "$PWD:/run/didkit" --network=host i
 The last step is to submit the signed presentation to the server:
 
 ```bash
-curl --fail-with-body -X PUT -d @person-vp-signed.json http://localhost:8000/person/did.json
+curl --fail-with-body -X PUT -d @person-vp-signed.json http://${DWS_EXTERNAL_HOSTNAME}:8000/person/did.json
 ```
 
 Let's retrieve the DID document from did-web-server for inspection:
 
 ```bash
-curl --fail-with-body http://localhost:8000/person/did.json | jq
+curl --fail-with-body http://${DWS_EXTERNAL_HOSTNAME}:8000/person/did.json | jq
 ```
 
 Congratulations, you've updated the DID document! 🎉
