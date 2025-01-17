@@ -1,29 +1,55 @@
+#!/usr/bin/env just --justfile
 # Documentation: https://just.systems/man/en/
 # Documentation: https://www.nushell.sh/book/
+#
+# Shell decativated so that bash is used by default. This simplifies CI integration
+# set shell := ['nu', '-c']
+# See https://hub.docker.com/r/nixos/nix/tags
 
-set shell := ["nu", "-c"]
-
+NIXOS_VERSION := '2.25.1'
 DIST_FOLDER := "target"
 
-# Display this help
-help:
+# Print this help
+default:
     @just -l
+
+# Format Justfile
+format:
+    @just --fmt --unstable
 
 # Install git commit hooks
 githooks:
     #!/usr/bin/env nu
     $env.config = { use_ansi_coloring: false, error_style: "plain" }
     let hooks_folder = '.githooks'
-    if (git config core.hooksPath) != $hooks_folder {
-      print 'Installing git commit hooks'
+    let git_hooks_folder = do {git config core.hooksPath} | complete
+    if $git_hooks_folder.exit_code == 0 and $git_hooks_folder.stdout != $hooks_folder {
+      print -e 'Installing git commit hooks'
       git config core.hooksPath $hooks_folder
       # npm install -g @commitlint/config-conventional
     }
     if not ($hooks_folder | path exists) {
       mkdir $hooks_folder
-      "#!/usr/bin/env -S sh\nset -eu\njust test" | save $"($hooks_folder)/pre-commit"
+      "#!/usr/bin/env -S sh
+    set -eu
+    just test" | save $"($hooks_folder)/pre-commit"
       chmod 755 $"($hooks_folder)/pre-commit"
-      "#!/usr/bin/env -S sh\nset -eu\n\nMSG_FILE=\"$1\"\nPATTERN='^(fix|feat|docs|style|chore|test|refactor|ci|build)(\\([a-z0-9/-]+\\))?!?: [a-z].+$'\n\nif ! head -n 1 \"${MSG_FILE}\" | grep -qE \"${PATTERN}\"; then\n\techo \"Your commit message:\" 1>&2\n\tcat \"${MSG_FILE}\" 1>&2\n\techo 1>&2\n\techo \"The commit message must conform to this pattern: ${PATTERN}\" 1>&2\n\techo \"Contents:\" 1>&2\n\techo \"- follow the conventional commits style (https://www.conventionalcommits.org/)\" 1>&2\n\techo 1>&2\n\techo \"Example:\" 1>&2\n\techo \"feat: add super awesome feature\" 1>&2\n\texit 1\nfi"| save $"($hooks_folder)/commit-msg"
+      "#!/usr/bin/env -S sh
+    set -eu
+    MSG_FILE=\"$1\"
+    PATTERN='^(fix|feat|docs|style|chore|test|refactor|ci|build)(\\([a-z0-9/-]+\\))?!?: [a-z].+$'
+    if ! head -n 1 \"${MSG_FILE}\" | grep -qE \"${PATTERN}\"; then
+            echo \"Your commit message:\" 1>&2
+            cat \"${MSG_FILE}\" 1>&2
+            echo 1>&2
+            echo \"The commit message must conform to this pattern: ${PATTERN}\" 1>&2
+            echo \"Contents:\" 1>&2
+            echo \"- follow the conventional commits style (https://www.conventionalcommits.org/)\" 1>&2
+            echo 1>&2
+            echo \"Example:\" 1>&2
+            echo \"feat: add super awesome feature\" 1>&2
+            exit 1
+    fi" | save $"($hooks_folder)/commit-msg"
       chmod 755 $"($hooks_folder)/commit-msg"
       # if not (".commitlintrc.yaml" | path exists) {
       # "extends:\n  - '@commitlint/config-conventional'" | save ".commitlintrc.yaml"
@@ -82,13 +108,17 @@ docs:
     cargo doc --open
 
 # Update dependencies
-update:
+update-deps:
     cargo update
 
 # Update repository
 update-repo:
     git pull --rebase
-    git submoule update --init --recursive
+    git submodule update --init --recursive
+
+# Update flake
+update-flake:
+    nix flake update
 
 # Build image
 docker-build: githooks
@@ -96,10 +126,12 @@ docker-build: githooks
     let manifest = (open manifest.json)
     let image = $"($manifest.registry.name)/($manifest.name):($manifest.version)"
     print -e $"Building image ($image)"
-    nix build
+    # INFO: ?submodules=1 is required, see https://discourse.nixos.org/t/get-nix-flake-to-include-git-submodule/30324/3
+    # Due to a bug, TMPDIR must be unset when running nix build inside a nix develop shell https://github.com/NixOS/nix/issues/10753
+    TMPDIR= nix build '.?submodules=1'
 
 # Load image locally
-docker-load:
+docker-load: docker-build
     #!/usr/bin/env nu
     ./result | docker image load
 
@@ -108,34 +140,38 @@ docker-run: docker-load
     #!/usr/bin/env nu
     let manifest = (open manifest.json)
     let image = $"($manifest.registry.name)/($manifest.name):($manifest.version)"
-    docker run --name $manifest.name -it --rm $image
-
-# Run shell image locally
-docker-run-sh: docker-load
-    #!/usr/bin/env nu
-    let manifest = (open manifest.json)
-    let image = $"($manifest.registry.name)/($manifest.name):($manifest.version)"
     docker run --name $manifest.name -it --rm --entrypoint /bin/sh $image --
 
 # Inspect image
-docker-inspect:
+docker-inspect: docker-build
     #!/usr/bin/env nu
     let manifest = (open manifest.json)
     let image = {
-      RepoTags: [$"($manifest.registry.name)/($manifest.name):($manifest.version)"],
+      RepoTags: [$manifest.version],
+      Name: $"($manifest.registry.name)/($manifest.name)",
+      Digest: $"Refer to just inspect-registry after pushing the image",
     }
-    ./result | skopeo inspect --config docker-archive:/dev/stdin  | from json | merge $image
+    ./result | skopeo inspect --config docker-archive:/dev/stdin | from json | merge $image | table -e
+
+# Inspect image
+inspect-registry:
+    #!/usr/bin/env nu
+    let manifest = (open manifest.json)
+    let image = $"($manifest.registry.name)/($manifest.name)"
+    let data = skopeo inspect $"docker://($image):($manifest.version)" | from json
+    $data | merge { Image: $"($image):($manifest.version)@($data | get -i Digest)" } | table -e
 
 # Push image
-docker-push:
+docker-push: docker-build
     #!/usr/bin/env nu
     let manifest = (open manifest.json)
     let image = $"($manifest.registry.name)/($manifest.name)"
     ./result | skopeo copy docker-archive:/dev/stdin $"docker://($image):($manifest.version)"
     ./result | skopeo copy docker-archive:/dev/stdin $"docker://($image):latest"
+    just inspect-registry
 
-# Create a new release of this module. LEVEL can be one of: major, minor, patch, premajor, preminor, prepatch, or prerelease.
-release LEVEL="patch" NEW_VERSION="":
+# Bump version. LEVEL can be one of: major, minor, patch, premajor, preminor, prepatch, or prerelease.
+bump LEVEL="patch" NEW_VERSION="":
     #!/usr/bin/env nu
     if (git rev-parse --abbrev-ref HEAD) != "main" {
       print -e "ERROR: A new release can only be created on the main branch."
@@ -157,16 +193,33 @@ release LEVEL="patch" NEW_VERSION="":
     open manifest.json | upsert version $new_version | save _manifest.json; mv _manifest.json manifest.json; git add manifest.json
     open Cargo.toml | upsert package.version $new_version | to toml | lines | insert 0 "# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html" | to text | save _Cargo.toml; mv _Cargo.toml Cargo.toml; git add Cargo.toml
     cargo update $manifest.name; git add Cargo.lock
-    open README.md | str replace -a $current_version $new_version | save _README.md; mv _README.md README.md; git add README.md
-    open -r ./docs/public/openapi.yaml | str replace -a $"version: \"($current_version)\"" $"version: \"($new_version)\"" | save ./docs/public/_openapi.yaml; mv ./docs/public/_openapi.yaml ./docs/public/openapi.yaml; git add ./docs/public/openapi.yaml
+    open README.md | str replace -a $current_version $new_version | collect | save -f README.md; git add README.md
+    open -r ./docs/public/openapi.yaml | str replace -a $"version: \"($current_version)\"" $"version: \"($new_version)\"" | collect | save -f ./docs/public/openapi.yaml; git add ./docs/public/openapi.yaml
     sed -i -e $"s,identinet/did-web-server:($current_version),identinet/did-web-server:($new_version),g" docs/src/**/*.md; git add docs/src/**/*.md
     git cliff -t $new_version -o CHANGELOG.md; git add CHANGELOG.md
     git commit -n -m $"Release version ($new_version)"
-    just docker-build
-    just docker-push
     git tag -s -m $new_version $new_version
     git push --atomic origin refs/heads/main $"refs/tags/($new_version)"
     git cliff --strip all --current | gh release create -F - $new_version
+
+# Release application
+release: docker-push
+
+# CI pipeline task that will create a release of the package
+ci:
+    docker run -w "/app" -v "${PWD}:/app" -v "${DOCKER_CONFIG:-${HOME}/.docker}/config.json:/root/.docker/config.json" "nixos/nix:{{ NIXOS_VERSION }}" /bin/sh -c "nix-env -iA nixpkgs.just; just _ci"
+
+# Release task that can only be executed within a NixOS environment
+_ci:
+    # Enable experimental flakes feature
+    echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
+    # Workaround if git directory doesn't belong to the current user, see bug https://github.com/NixOS/nix/issues/10202
+    git config --global --add safe.directory "/app"
+    mkdir -p /etc/containers
+    # See https://github.com/containers/image/blob/main/docs/containers-policy.json.5.md
+    # Disable all container security by default
+    echo '{ "default": [ { "type": "insecureAcceptAnything" } ] }' > /etc/containers/policy.json
+    nix develop .#ci --command just release
 
 # Remove unused dependencies (requires nightly version of compiler)
 clean-udeps:
@@ -183,3 +236,4 @@ clean-bloat:
 # Clean build folder
 clean:
     @rm -rvf {{ DIST_FOLDER }}
+    @rm -pf result
